@@ -4,7 +4,7 @@ export const XRPL_CONFIG = {
   wsUrl: 'wss://s.altnet.rippletest.net:51233', // WebSocket
   explorerUrl: 'https://testnet.xrpl.org/',
   // Must match backend settings.rlusd_issuer for RLUSD trustlines/payments
-  rlusdIssuer: 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV',
+  rlusdIssuer: process.env.REACT_APP_RLUSD_ISSUER || 'raybhsXv37jbz9vzEY7wbUMYhy5fbGmBP1',
   // Use 160-bit hex currency code (matches backend settings.rlusd_code)
   rlusdCode: '524C555344000000000000000000000000000000',
   rwaAccreditedCode: 'RWAACC',

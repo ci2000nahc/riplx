@@ -1,8 +1,15 @@
 """RWA minting (gated demo)."""
 
+from datetime import datetime, timedelta
+
+import aiohttp
 from fastapi import APIRouter, Header, HTTPException
-from xrpl.clients import JsonRpcClient
+from pydantic import BaseModel
+from xrpl.asyncio import transaction as xrpl_tx
+from xrpl.asyncio.clients import AsyncJsonRpcClient
 from xrpl.core.addresscodec import is_valid_classic_address
+from xrpl.models.amounts import IssuedCurrencyAmount
+from xrpl.models.transactions import Payment
 from xrpl.wallet import Wallet
 from app.config import settings
 from app.models.schemas import (
@@ -13,7 +20,19 @@ from app.models.schemas import (
 )
 
 router = APIRouter()
-client = JsonRpcClient(settings.xrpl_rpc_url)
+async_client = AsyncJsonRpcClient(settings.xrpl_rpc_url)
+
+
+def _ripple_epoch_to_iso(epoch_seconds: int | None) -> str | None:
+    """Convert XRPL epoch seconds (since 2000-01-01) to ISO8601."""
+    if epoch_seconds is None:
+        return None
+    return (datetime(2000, 1, 1) + timedelta(seconds=epoch_seconds)).isoformat() + "Z"
+
+
+class RwaTrustlineRequest(BaseModel):
+    code: str = "RWAACC"
+    limit: str = "10"
 
 
 @router.post("/mint", response_model=RwaMintResponse)
@@ -98,16 +117,23 @@ async def submit_rwa_tx(
     # Force issuer account to match environment configuration
     tx_json["Account"] = settings.rlusd_issuer
 
+    def _encode_currency(code: str) -> str:
+        # XRPL non-ISO codes must be 160-bit hex; pad ASCII code
+        if len(code) == 3:
+            return code
+        return code.encode("ascii").hex().ljust(40, "0").upper()
+
     try:
         wallet = Wallet.from_seed(settings.issuer_seed)
-        submit_req = {
-            "command": "submit",
-            "tx_json": tx_json,
-            "secret": wallet.seed,
-        }
+        issued_amount = IssuedCurrencyAmount(
+            currency=_encode_currency(currency),
+            issuer=settings.rlusd_issuer,
+            value=str(amount.get("value")),
+        )
+        payment = Payment(account=settings.rlusd_issuer, destination=destination, amount=issued_amount)
 
-        # Execute submit synchronously to avoid un-awaited coroutine warnings in async route
-        result = client.request(submit_req)
+        # Sign and submit using async client to avoid nested event loop issues
+        result = await xrpl_tx.sign_and_submit(payment, async_client, wallet, autofill=True)
         engine_result = result.result.get("engine_result")
         txid = result.result.get("tx_json", {}).get("hash") or result.result.get("hash")
         submitted = engine_result in {"tesSUCCESS", "terQUEUED"}
@@ -123,3 +149,72 @@ async def submit_rwa_tx(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/trustline")
+async def prepare_rwa_trustline(req: RwaTrustlineRequest):
+    """Create a XUMM payload to add the RWA trustline via QR (RWAACC or RWALOC)."""
+
+    if not settings.xumm_api_key or not settings.xumm_api_secret:
+        raise HTTPException(
+            status_code=500,
+            detail="Missing XUMM_API_KEY or XUMM_API_SECRET. Set them in the environment to enable trustlines.",
+        )
+
+    code = req.code
+    limit = req.limit
+
+    if code not in {"RWAACC", "RWALOC"}:
+        raise HTTPException(status_code=400, detail="code must be RWAACC or RWALOC")
+
+    def _encode_currency(code_str: str) -> str:
+        if len(code_str) == 3:
+            return code_str
+        return code_str.encode("ascii").hex().ljust(40, "0").upper()
+
+    currency_hex = _encode_currency(code)
+
+    tx_json = {
+        "TransactionType": "TrustSet",
+        "LimitAmount": {
+            "currency": currency_hex,
+            "issuer": settings.rlusd_issuer,
+            "value": limit,
+        },
+    }
+
+    payload_request = {
+        "txjson": tx_json,
+        "options": {
+            "submit": True,
+        },
+    }
+
+    headers = {
+        "X-API-Key": settings.xumm_api_key,
+        "X-API-Secret": settings.xumm_api_secret,
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://xumm.app/api/v1/platform/payload",
+                json=payload_request,
+                headers=headers,
+            ) as resp:
+                data = await resp.json()
+                if resp.status >= 300:
+                    raise HTTPException(status_code=resp.status, detail=data)
+
+        return {
+            "uuid": data.get("uuid"),
+            "next_url": data.get("next", {}).get("always")
+            or data.get("next", {}).get("no_redirect"),
+            "qr_url": data.get("refs", {}).get("qr_png"),
+            "expires_at": _ripple_epoch_to_iso(data.get("expires_at")),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

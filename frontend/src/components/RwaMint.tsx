@@ -18,6 +18,10 @@ export default function RwaMint() {
   const [issuerResult, setIssuerResult] = useState<string | null>(null);
   const [issuerError, setIssuerError] = useState<string | null>(null);
   const [issuerToken, setIssuerToken] = useState<string>(process.env.REACT_APP_ISSUER_SIGN_TOKEN || '');
+  const [trustQr, setTrustQr] = useState<string | null>(null);
+  const [trustLink, setTrustLink] = useState<string | null>(null);
+  const [trustLoading, setTrustLoading] = useState(false);
+  const [trustError, setTrustError] = useState<string | null>(null);
 
   const gateLabel = accepted
     ? 'Credential: Accepted'
@@ -64,6 +68,27 @@ export default function RwaMint() {
       setError(asString || err.message || 'Mint request failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTrustlineQr = async () => {
+    setTrustError(null);
+    setTrustQr(null);
+    setTrustLink(null);
+    try {
+      setTrustLoading(true);
+      const resp = await axios.post(`${API_BASE_URL}/api/rwa/trustline`, { code: 'RWAACC', limit: '10' });
+      setTrustLink(resp.data?.next_url || null);
+      setTrustQr(resp.data?.qr_url || null);
+      if (!resp.data?.qr_url && !resp.data?.next_url) {
+        setTrustError('No QR returned from signer.');
+      }
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      const asString = typeof detail === 'string' ? detail : detail ? JSON.stringify(detail) : undefined;
+      setTrustError(asString || err.message || 'Failed to build trustline QR');
+    } finally {
+      setTrustLoading(false);
     }
   };
 
@@ -181,6 +206,38 @@ export default function RwaMint() {
             {issuerResult && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-2 rounded text-sm">{issuerResult}</div>}
             <div className="text-xs text-gray-600">
               Server must have ISSUER_SEED set. If ISSUER_SIGN_TOKEN is set on the server, enter it above.
+            </div>
+            <div className="mt-3 border rounded p-3 bg-gray-50 text-sm space-y-2">
+              <div className="font-semibold text-gray-800">Need the trustline in Xumm/Xaman?</div>
+              <div className="text-xs text-gray-600">
+                Scan or open this trustline payload for token code {XRPL_CONFIG.rwaAccreditedCode} from issuer {XRPL_CONFIG.rlusdIssuer}. Limit 10.
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleTrustlineQr}
+                  disabled={trustLoading}
+                  className="bg-indigo-600 text-white px-3 py-2 rounded text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {trustLoading ? 'Preparing QR…' : 'Get trustline QR'}
+                </button>
+                {trustLink && (
+                  <a
+                    href={trustLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-700 underline text-xs self-center"
+                  >
+                    Open in Xumm/Xaman
+                  </a>
+                )}
+              </div>
+              {trustError && <div className="text-red-700 text-xs bg-red-50 border border-red-200 rounded p-2">{trustError}</div>}
+              {trustQr && (
+                <div className="flex justify-center">
+                  <img src={trustQr} alt="Trustline QR" className="w-48 h-48 border" />
+                </div>
+              )}
             </div>
           </div>
         )}
