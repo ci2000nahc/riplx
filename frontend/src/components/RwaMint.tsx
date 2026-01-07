@@ -4,10 +4,12 @@ import { useWalletStore } from '../store/walletStore';
 import { API_BASE_URL, XRPL_CONFIG } from '../utils/xrplConfig';
 import { isValidAmount } from '../utils/validators';
 import { useCredentialGate } from '../hooks/useCredentialGate';
+import { useCrosmark } from '../hooks/useCrosmark';
 
 export default function RwaMint() {
   const address = useWalletStore((state) => state.address);
-  const { allowed, loading: gateLoading, reason, allowlistHit } = useCredentialGate(address);
+  const { allowed, accepted, loading: gateLoading, reason, allowlistHit, refresh } = useCredentialGate(address);
+  const { signTransaction } = useCrosmark();
   const [tier, setTier] = useState<'accredited' | 'local'>('accredited');
   const [amount, setAmount] = useState('1');
   const [txJson, setTxJson] = useState<any>(null);
@@ -18,12 +20,17 @@ export default function RwaMint() {
   const [issuerResult, setIssuerResult] = useState<string | null>(null);
   const [issuerError, setIssuerError] = useState<string | null>(null);
   const [issuerToken, setIssuerToken] = useState<string>(process.env.REACT_APP_ISSUER_SIGN_TOKEN || '');
+  const [acceptLoading, setAcceptLoading] = useState(false);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
+  const [acceptResult, setAcceptResult] = useState<string | null>(null);
 
-  const gateLabel = allowed
-    ? allowlistHit
-      ? 'Allowlisted'
-      : 'Gate open (judging mode)'
-    : 'Credential check: Pending/Not verified';
+  const gateLabel = accepted
+    ? 'Credential: Accepted'
+    : allowed
+      ? allowlistHit
+        ? 'Allowlisted'
+        : 'Gate open (judging mode)'
+      : 'Credential check: Not verified';
   const canSubmit = allowed && !gateLoading && !loading;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +40,8 @@ export default function RwaMint() {
     setTxJson(null);
     setIssuerResult(null);
     setIssuerError(null);
+    setAcceptResult(null);
+    setAcceptError(null);
 
     if (!address) {
       setError('Connect your wallet first');
@@ -62,6 +71,49 @@ export default function RwaMint() {
       setError(asString || err.message || 'Mint request failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAccept = async () => {
+    setAcceptError(null);
+    setAcceptResult(null);
+
+    if (!address) {
+      setAcceptError('Connect your wallet first');
+      return;
+    }
+
+    if (!XRPL_CONFIG.credentialIssuerAddress) {
+      setAcceptError('Credential issuer address not set');
+      return;
+    }
+
+    const tx = {
+      TransactionType: 'CredentialAccept',
+      Account: address,
+      Issuer: XRPL_CONFIG.credentialIssuerAddress,
+      CredentialType: XRPL_CONFIG.credentialTypeHex,
+    };
+
+    try {
+      setAcceptLoading(true);
+      const txBlob = await signTransaction(tx);
+      if (!txBlob) {
+        setAcceptError('No signature received from wallet');
+        return;
+      }
+      const submitResponse = await axios.post(`${API_BASE_URL}/api/transactions/submit`, {
+        signed_tx: { tx_blob: txBlob },
+      });
+      const hash = submitResponse.data.tx_hash || submitResponse.data.txid || 'pending';
+      setAcceptResult(`CredentialAccept submitted: ${hash}`);
+      refresh();
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      const asString = typeof detail === 'string' ? detail : detail ? JSON.stringify(detail) : undefined;
+      setAcceptError(asString || err.message || 'Credential accept failed');
+    } finally {
+      setAcceptLoading(false);
     }
   };
 
@@ -116,6 +168,32 @@ export default function RwaMint() {
         {gateLoading && <span className="text-gray-500">Verifying…</span>}
         {reason && <span className="text-amber-700">{reason}</span>}
       </div>
+      {!accepted && (
+        <div className="mb-4 space-y-2 bg-gray-50 border border-gray-200 rounded p-3 text-sm">
+          <div className="font-semibold text-gray-800">Accept your credential (on-ledger)</div>
+          <p className="text-gray-700">You will sign a CredentialAccept transaction with your wallet to prove ownership of the credential.</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleAccept}
+              disabled={acceptLoading}
+              className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {acceptLoading ? 'Submitting…' : 'Accept credential'}
+            </button>
+            <button
+              type="button"
+              onClick={refresh}
+              className="bg-white text-gray-800 px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
+            >
+              Refresh status
+            </button>
+          </div>
+          {acceptError && <div className="bg-red-50 border border-red-200 text-red-700 p-2 rounded text-xs">{acceptError}</div>}
+          {acceptResult && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-2 rounded text-xs">{acceptResult}</div>}
+          <div className="text-xs text-gray-600">Issuer: {XRPL_CONFIG.credentialIssuerAddress}. CredentialType: {XRPL_CONFIG.credentialTypeHex}</div>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Tier</label>

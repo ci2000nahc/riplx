@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     # Credential allowlist for demo permissioning (comma-separated XRPL addresses)
     credential_allowlist: str = ""
 
+    # Credential issuer (for CredentialCreate/Accept flows)
+    credential_issuer_seed: Optional[str] = None
+    credential_issuer_address: Optional[str] = None
+    credential_type_hex: str = "41434352454449544544"  # "ACCREDITED" hex
+    credential_admin_token: Optional[str] = None
+
     # Server Configuration
     backend_port: int = 8000
     backend_host: str = "0.0.0.0"

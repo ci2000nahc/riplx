@@ -49,8 +49,12 @@ A consumer-facing payment application for Ripple USD (RLUSD) on the XRP Ledger. 
 - Endpoint: `POST /api/rwa/mint` returns a Payment `tx_json` from the issuer to the requester; issuer must sign and submit.
 - Issuer submit helper: `POST /api/rwa/submit` signs + submits the returned `tx_json` using `ISSUER_SEED` (demo-only). If `ISSUER_SIGN_TOKEN` is set, call with header `X-Issuer-Token`.
 - Trustline required: recipient must add a trustline to the issuer/token code before settlement.
-- Credential gate: allowlist-based demo. If `CREDENTIAL_ALLOWLIST` is empty, the gate is OPEN (judging mode). To lock it, set comma-separated XRPL classic addresses in `CREDENTIAL_ALLOWLIST` and restart backend.
-- Frontend issuer button uses optional `REACT_APP_ISSUER_SIGN_TOKEN` to pass the signing token header when required.
+- Credential gate options: on-ledger credential or allowlist fallback. If `CREDENTIAL_ALLOWLIST` is empty, the gate is OPEN (judging mode). To lock it, set comma-separated XRPL classic addresses in `CREDENTIAL_ALLOWLIST` and restart backend.
+- On-ledger credential path (ACCREDITED):
+   - **Issue**: `POST /api/credentials/create` (admin token header `X-Credential-Token` if set). Uses `CREDENTIAL_ISSUER_SEED`, `CREDENTIAL_ISSUER_ADDRESS`, and `CREDENTIAL_TYPE_HEX` (defaults to `ACCREDITED`).
+   - **Accept**: User signs `CredentialAccept` in the UI (Crossmark). Backend submit handles the signed blob.
+   - **Verify**: `GET /api/credentials/status` checks `lsfAccepted` via `ledger_entry`. Mint button unlocks when accepted.
+- Frontend issuer button uses optional `REACT_APP_ISSUER_SIGN_TOKEN` to pass the signing token header when required. Frontend credential accept uses `REACT_APP_CREDENTIAL_ISSUER_ADDRESS` and `REACT_APP_CREDENTIAL_TYPE_HEX` (defaults provided).
 
 ## Frontend Deploy (Vercel)
 

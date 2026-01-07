@@ -7,12 +7,15 @@ export function useCredentialGate(address: string | null) {
   const [loading, setLoading] = useState(false);
   const [reason, setReason] = useState<string | null>(null);
   const [allowlistHit, setAllowlistHit] = useState(false);
+  const [accepted, setAccepted] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     if (!address) {
       setAllowed(false);
       setReason(null);
       setAllowlistHit(false);
+      setAccepted(false);
       return;
     }
     let cancelled = false;
@@ -26,6 +29,7 @@ export function useCredentialGate(address: string | null) {
         setAllowed(Boolean(resp.data.allowed));
         setReason(resp.data.reason || null);
         setAllowlistHit(Boolean(resp.data.allowlist_hit));
+        setAccepted(Boolean(resp.data.accepted));
       } catch (err: any) {
         if (cancelled) return;
         setAllowed(false);
@@ -33,6 +37,7 @@ export function useCredentialGate(address: string | null) {
         const asString = typeof detail === 'string' ? detail : detail ? JSON.stringify(detail) : undefined;
         setReason(asString || err.message || 'Unable to verify permissions');
         setAllowlistHit(false);
+        setAccepted(false);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -41,7 +46,9 @@ export function useCredentialGate(address: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [address]);
+  }, [address, refreshTick]);
 
-  return { allowed, loading, reason, allowlistHit };
+  const refresh = () => setRefreshTick((v) => v + 1);
+
+  return { allowed, accepted, loading, reason, allowlistHit, refresh };
 }

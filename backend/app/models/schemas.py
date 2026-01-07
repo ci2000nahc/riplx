@@ -126,6 +126,35 @@ class CredentialVerifyResponse(BaseModel):
     level: int = 1
     reason: Optional[str] = None
     allowlist_hit: bool = False
+    accepted: bool = False
+
+
+class CredentialCreateRequest(BaseModel):
+    """Request to create a credential for a subject"""
+
+    subject: str
+    uri: Optional[str] = None
+
+
+class CredentialCreateResponse(BaseModel):
+    """Response for credential creation"""
+
+    submitted: bool
+    txid: Optional[str] = None
+    engine_result: Optional[str] = None
+    message: str
+    error: Optional[str] = None
+
+
+class CredentialStatusResponse(BaseModel):
+    """Ledger credential status"""
+
+    subject: str
+    issuer: str
+    credential_type: str
+    accepted: bool
+    raw_flags: Optional[int] = None
+    message: Optional[str] = None
 
 
 class RwaMintRequest(BaseModel):
