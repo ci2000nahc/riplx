@@ -14,7 +14,11 @@ A consumer-facing payment application for Ripple USD (RLUSD) on the XRP Ledger. 
 - Real-time RLUSD + XRP balances via XRPL RPC
 - RLUSD payments through XUMM/Xaman signing (requires XUMM API keys)
 - XRP payments signed in Crossmark (tested on testnet)
+- Recipient trustline guard and XUMM trustline helper
+- Credential gate (demo) for permissioned RLUSD sends
+- RLUSD → XRP swap via native DEX OfferCreate (IOC)
 - Recent payments feed (XRP + RLUSD)
+- Developer feedback CTA to capture issues/UX gaps
 - React + Tailwind UI ready for demos on XRPL testnet
 
 ## Known Limitation
@@ -22,6 +26,7 @@ A consumer-facing payment application for Ripple USD (RLUSD) on the XRP Ledger. 
 **RLUSD via Crossmark:** The Crossmark SDK `signAndWait()` currently supports only native XRP, not issued currencies like RLUSD. Issued-currency Amount objects are unsupported, so RLUSD sends must use XUMM/Xaman or a custom builder.
 
 **Workarounds for RLUSD:**
+
 - Use XUMM/Xaman (already implemented)
 - Build RLUSD transactions manually (XRPL SDK) and present for signing
 - Add a backend signing helper when supported by the chosen wallet
@@ -35,6 +40,14 @@ A consumer-facing payment application for Ripple USD (RLUSD) on the XRP Ledger. 
 - XUMM/Xaman must be on testnet and use a testnet app key/secret.
 - XUMM signs with the currently active account; switch to the funded RLUSD account before opening the signing prompt.
 - If you see `temREDUNDANT` after signing, the same signed payload was already submitted/seen. Check the txid from `/api/transactions/xumm/status/:uuid` on the explorer; if you need another payment, generate a fresh payload (or change the amount) and sign once.
+
+## Frontend Deploy (Vercel)
+
+- Root directory: `frontend`
+- Build command: `npm install && npm run build`
+- Output directory: `build`
+- Env vars: set `REACT_APP_API_URL` to your backend URL (e.g., `http://localhost:8000` or your hosted backend)
+- A monorepo config is provided in `vercel.json` for static build routing.
 
 ## Quick Start (5 Minutes)
 
@@ -107,12 +120,13 @@ Opens: http://localhost:3000
 ### Test the App (Live Demo)
 
 1. Start services if not already running:
+
    ```bash
    # Terminal 1: Backend
    cd backend && source venv/bin/activate
    python -m uvicorn app.main:app --reload --port 8000
-   
-   # Terminal 2: Frontend  
+
+   # Terminal 2: Frontend
    cd frontend && npm start
    ```
 
@@ -289,28 +303,31 @@ open http://localhost:8000/docs
 
 ## Troubleshooting
 
-| Issue                 | Solution                                              |
-| --------------------- | ----------------------------------------------------- |
-| Crossmark not showing | Make sure extension has permission for localhost:3000 |
-| 500 balance error     | Check backend logs, verify address is testnet         |
-| Slow balance load     | XRPL RPC can be slow, reload page                     |
-| Wallet not connecting | Refresh page, ensure Crossmark is enabled             |
+| Issue                      | Solution                                                                                                                                                          |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Crossmark not showing      | Make sure extension has permission for localhost:3000                                                                                                             |
+| 500 balance error          | Check backend logs, verify address is testnet                                                                                                                     |
+| Slow balance load          | XRPL RPC can be slow, reload page                                                                                                                                 |
+| Wallet not connecting      | Refresh page, ensure Crossmark is enabled                                                                                                                         |
 | Insufficient RLUSD in XUMM | Ensure the active XUMM account has RLUSD balance and the RLUSD trustline (issuer rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV). The recipient must also have the trustline. |
-| XUMM code temREDUNDANT | The signed tx was already seen/submitted; use the txid to confirm on the explorer or send a fresh payload with a new amount. |
+| XUMM code temREDUNDANT     | The signed tx was already seen/submitted; use the txid to confirm on the explorer or send a fresh payload with a new amount.                                      |
 
 ## Next Steps
 
 **Phase 1 (Current MVP):**
+
 - ✅ XRP payments working
 - ✅ Real-time balance display working
 - ✅ XRPL integration proven
 
 **Phase 2 (RLUSD Transactions):**
+
 1. **Option A: Switch to XUMM Wallet** - Native RLUSD support
 2. **Option B: Custom Transaction Builder** - Build & sign RLUSD txs in backend
 3. **Option C: Multiple Wallet Support** - Let users choose Crossmark (XRP) or XUMM (RLUSD)
 
 **Phase 3:**
+
 - Transaction history endpoint
 - Mainnet support
 - DID/KYC credentials

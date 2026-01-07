@@ -35,7 +35,7 @@ async def get_balance(address: str):
             executor, lambda: client.request(AccountInfo(account=address))
         )
         print(f"[BALANCE] account_info.result keys: {account_info.result.keys()}")
-        
+
         # Balance is nested under account_data
         xrp_balance = account_info.result.get("account_data", {}).get("Balance", "0")
         print(f"[BALANCE] XRP balance (drops): {xrp_balance}")
@@ -54,12 +54,12 @@ async def get_balance(address: str):
         # RLUSD is encoded as hex in the currency field
         # "524C555344000000000000000000000000000000" = hex("RLUSD" padded)
         rlusd_hex = "524C555344000000000000000000000000000000"
-        
+
         for line in lines:
-            print(f"[BALANCE] Checking line currency: {line.get('currency')}, account: {line.get('account')}")
-            if (
-                line.get("currency") == rlusd_hex
-            ):
+            print(
+                f"[BALANCE] Checking line currency: {line.get('currency')}, account: {line.get('account')}"
+            )
+            if line.get("currency") == rlusd_hex:
                 rlusd_balance = line.get("balance", "0")
                 print(f"[BALANCE] Found RLUSD: {rlusd_balance}")
                 break

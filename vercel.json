@@ -1,0 +1,9 @@
+{
+  "installCommand": "cd frontend && npm install",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/build",
+  "framework": "create-react-app",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [{ "source": "/(.*)", "destination": "/frontend/build/$1" }]
+}

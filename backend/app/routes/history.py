@@ -21,7 +21,9 @@ def _to_iso_timestamp(ripple_epoch_seconds: int | None) -> str | None:
     if ripple_epoch_seconds is None:
         return None
     # XRPL epoch starts at 2000-01-01T00:00:00Z
-    return (datetime(2000, 1, 1) + timedelta(seconds=ripple_epoch_seconds)).isoformat() + "Z"
+    return (
+        datetime(2000, 1, 1) + timedelta(seconds=ripple_epoch_seconds)
+    ).isoformat() + "Z"
 
 
 @router.get("/{address}", response_model=TransactionHistoryResponse)

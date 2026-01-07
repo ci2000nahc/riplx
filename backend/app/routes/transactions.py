@@ -103,7 +103,10 @@ async def validate_recipient(req: TrustlineCheckRequest):
     """Validate that the recipient can accept the payment (trustline for RLUSD)."""
 
     if not is_valid_classic_address(req.destination):
-        raise HTTPException(status_code=400, detail="Destination address is not a valid XRPL classic address")
+        raise HTTPException(
+            status_code=400,
+            detail="Destination address is not a valid XRPL classic address",
+        )
 
     has_trust, reason = await _check_trustline(req.destination, req.currency)
     return TrustlineCheckResponse(has_trustline=has_trust, reason=reason)
@@ -187,10 +190,16 @@ async def prepare_xumm(req: TransactionRequest):
         )
 
     if not is_valid_classic_address(req.destination):
-        raise HTTPException(status_code=400, detail="Destination address is not a valid XRPL classic address")
+        raise HTTPException(
+            status_code=400,
+            detail="Destination address is not a valid XRPL classic address",
+        )
 
     if not is_valid_classic_address(settings.rlusd_issuer):
-        raise HTTPException(status_code=500, detail="Configured RLUSD issuer is not a valid XRPL classic address")
+        raise HTTPException(
+            status_code=500,
+            detail="Configured RLUSD issuer is not a valid XRPL classic address",
+        )
 
     try:
         tx_json = {
@@ -230,7 +239,8 @@ async def prepare_xumm(req: TransactionRequest):
 
         return XummPayloadResponse(
             uuid=data.get("uuid"),
-            next_url=data.get("next", {}).get("always") or data.get("next", {}).get("no_redirect"),
+            next_url=data.get("next", {}).get("always")
+            or data.get("next", {}).get("no_redirect"),
             qr_url=data.get("refs", {}).get("qr_png"),
             expires_at=_ripple_epoch_to_iso(data.get("expires_at")),
             pushed=data.get("pushed"),
@@ -252,7 +262,10 @@ async def prepare_xumm_trustline():
         )
 
     if not is_valid_classic_address(settings.rlusd_issuer):
-        raise HTTPException(status_code=500, detail="Configured RLUSD issuer is not a valid XRPL classic address")
+        raise HTTPException(
+            status_code=500,
+            detail="Configured RLUSD issuer is not a valid XRPL classic address",
+        )
 
     tx_json = {
         "TransactionType": "TrustSet",
@@ -291,7 +304,8 @@ async def prepare_xumm_trustline():
 
         return {
             "uuid": data.get("uuid"),
-            "next_url": data.get("next", {}).get("always") or data.get("next", {}).get("no_redirect"),
+            "next_url": data.get("next", {}).get("always")
+            or data.get("next", {}).get("no_redirect"),
             "qr_url": data.get("refs", {}).get("qr_png"),
             "expires_at": _ripple_epoch_to_iso(data.get("expires_at")),
         }
