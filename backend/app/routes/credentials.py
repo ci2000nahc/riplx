@@ -3,7 +3,6 @@
 from fastapi import APIRouter, Header, HTTPException, Query
 from xrpl.clients import JsonRpcClient
 from xrpl.core.addresscodec import is_valid_classic_address
-from xrpl.transaction import safe_sign_and_submit_transaction_json
 from xrpl.wallet import Wallet
 from app.config import settings
 from app.models.schemas import (
@@ -139,7 +138,12 @@ async def create_credential(
 
     try:
         wallet = Wallet.from_seed(settings.credential_issuer_seed)
-        result = safe_sign_and_submit_transaction_json(tx_json, wallet, client)
+        submit_req = {
+            "command": "submit",
+            "tx_json": tx_json,
+            "secret": wallet.seed,
+        }
+        result = client.request(submit_req)
         engine_result = result.result.get("engine_result")
         txid = result.result.get("tx_json", {}).get("hash") or result.result.get("hash")
         submitted = engine_result in {"tesSUCCESS", "terQUEUED"}

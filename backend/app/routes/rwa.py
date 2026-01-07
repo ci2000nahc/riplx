@@ -3,7 +3,6 @@
 from fastapi import APIRouter, Header, HTTPException
 from xrpl.clients import JsonRpcClient
 from xrpl.core.addresscodec import is_valid_classic_address
-from xrpl.transaction import safe_sign_and_submit_transaction_json
 from xrpl.wallet import Wallet
 from app.config import settings
 from app.models.schemas import (
@@ -61,13 +60,14 @@ async def submit_rwa_tx(
     req: RwaSubmitRequest,
     x_issuer_token: str | None = Header(default=None, convert_underscores=False),
 ):
-        if settings.issuer_sign_token:
-            if x_issuer_token != settings.issuer_sign_token:
-                raise HTTPException(status_code=401, detail="Invalid issuer signing token")
     """Issuer signs and submits a prepared RWA mint tx_json (demo only).
 
     Security: this endpoint uses ISSUER_SEED from environment. Only enable in controlled/demo environments.
     """
+
+    if settings.issuer_sign_token:
+        if x_issuer_token != settings.issuer_sign_token:
+            raise HTTPException(status_code=401, detail="Invalid issuer signing token")
 
     if not settings.issuer_seed:
         raise HTTPException(status_code=400, detail="ISSUER_SEED not configured on server")
@@ -100,7 +100,12 @@ async def submit_rwa_tx(
 
     try:
         wallet = Wallet.from_seed(settings.issuer_seed)
-        result = safe_sign_and_submit_transaction_json(tx_json, wallet, client)
+        submit_req = {
+            "command": "submit",
+            "tx_json": tx_json,
+            "secret": wallet.seed,
+        }
+        result = client.request(submit_req)
         engine_result = result.result.get("engine_result")
         txid = result.result.get("tx_json", {}).get("hash") or result.result.get("hash")
         submitted = engine_result in {"tesSUCCESS", "terQUEUED"}
