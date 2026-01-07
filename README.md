@@ -8,16 +8,15 @@ A consumer-facing payment application for Ripple USD (RLUSD) on the XRP Ledger. 
 
 **Solution:** A working MVP that demonstrates instant RLUSD payments with real balance tracking, built entirely on XRPL testnet.
 
+**Note:** Payment and swap UIs are currently disabled; the live demo focuses on wallet connect, balances, on-ledger credentials, and gated RWA mint.
+
 ## Capabilities (Testnet)
 
 - Crossmark wallet connection for XRPL-native flows
 - Real-time RLUSD + XRP balances via XRPL RPC
-- RLUSD payments through XUMM/Xaman signing (requires XUMM API keys)
-- XRP payments signed in Crossmark (tested on testnet)
-- Recipient trustline guard and XUMM trustline helper
-- Credential gate (demo) for permissioned RLUSD sends
-- RLUSD → XRP swap via native DEX OfferCreate (IOC)
-- Recent payments feed (XRP + RLUSD)
+- Credential-gated RWA mint (ACCREDITED/LOCAL) with issuer sign/submit helper
+- On-ledger credential issue/accept/verify demo (ACCREDITED badge)
+- Recent transactions feed (XRP + RLUSD)
 - Developer feedback CTA to capture issues/UX gaps
 - React + Tailwind UI ready for demos on XRPL testnet
 
