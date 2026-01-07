@@ -105,6 +105,8 @@ async def submit_rwa_tx(
             "tx_json": tx_json,
             "secret": wallet.seed,
         }
+
+        # Execute submit synchronously to avoid un-awaited coroutine warnings in async route
         result = client.request(submit_req)
         engine_result = result.result.get("engine_result")
         txid = result.result.get("tx_json", {}).get("hash") or result.result.get("hash")
