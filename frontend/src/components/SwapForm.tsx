@@ -1,26 +1,29 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useWalletStore } from '../store/walletStore';
-import { useCrosmark } from '../hooks/useCrosmark';
-import { API_BASE_URL, XRPL_CONFIG } from '../utils/xrplConfig';
+import { useXumm } from '../hooks/useXumm';
+import { XRPL_CONFIG } from '../utils/xrplConfig';
 import { isValidAmount } from '../utils/validators';
 
-// Simple RLUSD -> XRP swap using OfferCreate (tfSell + IOC) signed via Crossmark.
+// Simple RLUSD -> XRP swap using OfferCreate (tfSell + IOC) signed via XUMM/Xaman.
 export default function SwapForm() {
   const address = useWalletStore((state) => state.address);
-  const { signTransaction } = useCrosmark();
+  const { signAndSubmit } = useXumm();
   const [amount, setAmount] = useState('');
   const [price, setPrice] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [xummLink, setXummLink] = useState<string | null>(null);
+  const [xummQr, setXummQr] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     setTxHash(null);
+    setXummLink(null);
+    setXummQr(null);
 
     if (!address) {
       setError('Connect your wallet first');
@@ -42,6 +45,7 @@ export default function SwapForm() {
 
     const txJson = {
       TransactionType: 'OfferCreate',
+      Account: address,
       TakerPays: {
         currency: XRPL_CONFIG.rlusdCode,
         issuer: XRPL_CONFIG.rlusdIssuer,
@@ -53,17 +57,16 @@ export default function SwapForm() {
 
     try {
       setLoading(true);
-      const txBlob = await signTransaction(txJson);
-      if (!txBlob) {
-        setError('No signature received from wallet');
+      const signed = await signAndSubmit(txJson);
+      setXummLink(signed.nextUrl || null);
+      setXummQr(signed.qrUrl || null);
+
+      if (!signed.signed) {
+        setError(signed.error || 'Swap signing cancelled or expired.');
         return;
       }
 
-      const submitResponse = await axios.post(`${API_BASE_URL}/api/transactions/submit`, {
-        signed_tx: { tx_blob: txBlob },
-      });
-
-      const hash = submitResponse.data.tx_hash || 'pending';
+      const hash = signed.txid || 'pending';
       setTxHash(hash);
       setSuccess('Swap submitted (OfferCreate). If matched on-ledger, XRP will be returned and RLUSD debited.');
       setAmount('');
@@ -134,6 +137,18 @@ export default function SwapForm() {
             >
               View on XRPL Testnet Explorer
             </a>
+          </div>
+        )}
+
+        {xummLink && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded text-sm">
+            XUMM payload: <a href={xummLink} target="_blank" rel="noreferrer" className="underline">Open signing prompt</a>
+          </div>
+        )}
+
+        {xummQr && (
+          <div className="flex justify-center">
+            <img src={xummQr} alt="XUMM QR" className="w-40 h-40 border" />
           </div>
         )}
 

@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useWalletStore } from '../store/walletStore';
 import { isValidXRPLAddress, isValidAmount } from '../utils/validators';
-import { useCrosmark } from '../hooks/useCrosmark';
+import { useXumm } from '../hooks/useXumm';
 import axios from 'axios';
 import { API_BASE_URL, XRPL_CONFIG } from '../utils/xrplConfig';
 import { useCredentialGate } from '../hooks/useCredentialGate';
 
 export default function SendForm() {
   const address = useWalletStore((state) => state.address);
-  const { signTransaction } = useCrosmark();
+  const { signAndSubmit } = useXumm();
   const { allowed: credentialAllowed, loading: credentialLoading, reason: credentialReason } = useCredentialGate(address);
   const [destination, setDestination] = useState('');
   const [amount, setAmount] = useState('');
@@ -56,7 +56,7 @@ export default function SendForm() {
       }
 
       if (currency === 'XRP') {
-        // XRP path via Crossmark
+        // XRP path via XUMM/Xaman
         console.log('Preparing XRP transaction...');
         const prepareResponse = await axios.post(`${API_BASE_URL}/api/transactions/prepare`, {
           destination,
@@ -64,40 +64,23 @@ export default function SendForm() {
           currency: 'XRP'
         });
 
-        const txJson = prepareResponse.data.tx_json;
+        const txJson = {
+          ...prepareResponse.data.tx_json,
+          Account: address,
+        };
         console.log('Prepared tx_json from backend:', txJson);
 
-        console.log('Requesting Crossmark signature...');
-        let txBlob;
-        try {
-          txBlob = await signTransaction(txJson);
-        } catch (signError: any) {
-          console.error('Signing error:', signError);
-          if (signError.message && signError.message.includes('cancelled')) {
-            setError('Transaction signing cancelled');
-          } else if (signError.message && signError.message.includes('Non-base58')) {
-            setError('Invalid transaction format. Please try again.');
-          } else {
-            setError(`Signing failed: ${signError.message}`);
-          }
+        const signResult = await signAndSubmit(txJson);
+        setXummLink(signResult.nextUrl || null);
+        setXummQr(signResult.qrUrl || null);
+
+        if (!signResult.signed) {
+          setError(signResult.error || 'Transaction signing cancelled or expired.');
           setLoading(false);
           return;
         }
 
-        if (!txBlob) {
-          setError('No signature received from wallet');
-          setLoading(false);
-          return;
-        }
-
-        console.log('Submitting signed transaction...');
-        const submitResponse = await axios.post(`${API_BASE_URL}/api/transactions/submit`, {
-          signed_tx: {
-            tx_blob: txBlob
-          }
-        });
-
-        const hash = submitResponse.data.tx_hash || 'pending';
+        const hash = signResult.txid || 'pending';
         setTxHash(hash);
         setSuccess('Payment submitted to XRPL testnet');
         setDestination('');
@@ -205,7 +188,7 @@ export default function SendForm() {
             onChange={(e) => setCurrency(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="XRP">XRP (Crossmark)</option>
+            <option value="XRP">XRP (XUMM/Xaman)</option>
             <option value="USD">RLUSD (XUMM)</option>
           </select>
           {currency === 'USD' && (
