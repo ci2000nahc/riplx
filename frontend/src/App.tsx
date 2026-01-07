@@ -5,6 +5,7 @@ import SendForm from './components/SendForm';
 import TransactionHistory from './components/TransactionHistory';
 import SwapForm from './components/SwapForm';
 import FeedbackCTA from './components/FeedbackCTA';
+import RwaMint from './components/RwaMint';
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,10 @@ function App() {
 
           <div className="bg-white rounded-lg shadow-md p-6 mt-6">
             <SwapForm />
+          </div>
+
+          <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+            <RwaMint />
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-6 mt-6">

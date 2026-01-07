@@ -41,6 +41,15 @@ A consumer-facing payment application for Ripple USD (RLUSD) on the XRP Ledger. 
 - XUMM signs with the currently active account; switch to the funded RLUSD account before opening the signing prompt.
 - If you see `temREDUNDANT` after signing, the same signed payload was already submitted/seen. Check the txid from `/api/transactions/xumm/status/:uuid` on the explorer; if you need another payment, generate a fresh payload (or change the amount) and sign once.
 
+## Gated RWA Mint (Demo)
+
+- New portal flow: only credential-verified users (demo gate) can request mint of RWA tokens by tier:
+   - Accredited: code `RWAACC`
+   - Local resident: code `RWALOC`
+- Endpoint: `POST /api/rwa/mint` returns a Payment `tx_json` from the issuer to the requester; issuer must sign and submit.
+- Trustline required: recipient must add a trustline to the issuer/token code before settlement.
+- Credential gate currently mocked for demo; replace with real DID/credential verification in production.
+
 ## Frontend Deploy (Vercel)
 
 - Root directory: `frontend`

@@ -7,6 +7,8 @@ export const XRPL_CONFIG = {
   rlusdIssuer: 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV',
   // Use 160-bit hex currency code (matches backend settings.rlusd_code)
   rlusdCode: '524C555344000000000000000000000000000000',
+  rwaAccreditedCode: 'RWAACC',
+  rwaLocalCode: 'RWALOC'
 };
 
 export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';

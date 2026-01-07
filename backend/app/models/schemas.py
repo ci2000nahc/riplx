@@ -125,3 +125,21 @@ class CredentialVerifyResponse(BaseModel):
     allowed: bool
     level: int = 1
     reason: Optional[str] = None
+
+
+class RwaMintRequest(BaseModel):
+    """Request to mint a gated RWA token (demo)."""
+
+    address: str
+    tier: str = Field(..., description="accredited or local")
+    amount: str = Field(..., description="Units of the RWA token to mint")
+
+
+class RwaMintResponse(BaseModel):
+    """Response for RWA mint requests."""
+
+    accepted: bool
+    token_code: str
+    tier: str
+    message: str
+    tx_json: dict

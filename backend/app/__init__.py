@@ -5,7 +5,7 @@ XRPL Payment Application Backend
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routes import balance, transactions, credentials, history
+from app.routes import balance, transactions, credentials, history, rwa
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -31,6 +31,7 @@ app.include_router(
 )
 app.include_router(credentials.router, prefix="/api/credentials", tags=["credentials"])
 app.include_router(history.router, prefix="/api/history", tags=["history"])
+app.include_router(rwa.router, prefix="/api/rwa", tags=["rwa"])
 
 
 @app.get("/")
