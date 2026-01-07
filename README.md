@@ -6,9 +6,9 @@ A consumer-facing payment application for Ripple USD (RLUSD) on the XRP Ledger. 
 
 **Problem:** No user-friendly RLUSD payment application exists on XRPL today.
 
-**Solution:** A working MVP that demonstrates instant RLUSD payments with real balance tracking, built entirely on XRPL testnet.
+**Solution:** A working MVP that demonstrates wallet connect, balances, allowlist/credential-gated RWA mint, and issuer-sign flow on XRPL testnet.
 
-**Note:** Payment and swap UIs are currently disabled; the live demo focuses on wallet connect, balances, on-ledger credentials, and gated RWA mint.
+**Note:** Payment and swap UIs are disabled; Crossmark currently rejects `CredentialAccept` on testnet, so the demo gate uses allowlist/judging mode (set `CREDENTIAL_ALLOWLIST` to lock it down).
 
 ## Capabilities (Testnet)
 
@@ -51,8 +51,8 @@ A consumer-facing payment application for Ripple USD (RLUSD) on the XRP Ledger. 
 - Credential gate options: on-ledger credential or allowlist fallback. If `CREDENTIAL_ALLOWLIST` is empty, the gate is OPEN (judging mode). To lock it, set comma-separated XRPL classic addresses in `CREDENTIAL_ALLOWLIST` and restart backend.
 - On-ledger credential path (ACCREDITED):
    - **Issue**: `POST /api/credentials/create` (admin token header `X-Credential-Token` if set). Uses `CREDENTIAL_ISSUER_SEED`, `CREDENTIAL_ISSUER_ADDRESS`, and `CREDENTIAL_TYPE_HEX` (defaults to `ACCREDITED`).
-   - **Accept**: User signs `CredentialAccept` in the UI (Crossmark). Backend submit handles the signed blob.
-   - **Verify**: `GET /api/credentials/status` checks `lsfAccepted` via `ledger_entry`. Mint button unlocks when accepted.
+   - **Accept**: Crossmark currently rejects `CredentialAccept` on testnet; use allowlist/judging mode instead for the live demo. If you have a wallet/network that supports `CredentialAccept`, sign it client-side and submit as usual.
+   - **Verify**: `GET /api/credentials/status` checks `lsfAccepted` via `ledger_entry` (for networks/wallets that support credential acceptance). Mint button unlocks when accepted.
 - Frontend issuer button uses optional `REACT_APP_ISSUER_SIGN_TOKEN` to pass the signing token header when required. Frontend credential accept uses `REACT_APP_CREDENTIAL_ISSUER_ADDRESS` and `REACT_APP_CREDENTIAL_TYPE_HEX` (defaults provided).
 
 ## Frontend Deploy (Vercel)
