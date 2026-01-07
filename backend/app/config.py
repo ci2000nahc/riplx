@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     # Server Configuration
     backend_port: int = 8000
     backend_host: str = "0.0.0.0"
-    cors_origins: str = "http://localhost:3000,http://localhost:3001"
+    cors_origins: str = "http://localhost:3000,http://localhost:3001,https://riplx.vercel.app,https://wartlike-dorene-tartarous.ngrok-free.dev"
 
     # DID & Credentials (for credential issuing service)
     issuer_seed: Optional[str] = None

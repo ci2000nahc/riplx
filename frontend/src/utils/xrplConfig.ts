@@ -13,4 +13,4 @@ export const XRPL_CONFIG = {
   credentialTypeHex: process.env.REACT_APP_CREDENTIAL_TYPE_HEX || '41434352454449544544', // "ACCREDITED"
 };
 
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://wartlike-dorene-tartarous.ngrok-free.dev';
