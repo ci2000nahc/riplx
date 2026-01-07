@@ -57,6 +57,13 @@ export function useXumm() {
       throw new Error(msg);
     }
 
+    const payloadApi = xumm.payload;
+    if (!payloadApi) {
+      const msg = 'XUMM payload API unavailable.';
+      setError(msg);
+      throw new Error(msg);
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -64,7 +71,7 @@ export function useXumm() {
       setLoginLink(null);
 
       // Build a SignIn payload so XUMM/Xaman shows a QR that links the session
-      const subscription = await xumm.payload.createAndSubscribe(
+      const subscription = await payloadApi.createAndSubscribe(
         {
           txjson: { TransactionType: 'SignIn' },
         },
@@ -78,12 +85,9 @@ export function useXumm() {
       );
 
       const created = await subscription.created;
+      const next = (created as any)?.next as { always?: string; no_redirect?: string } | undefined;
       setLoginQr(created?.refs?.qr_png || null);
-      setLoginLink(
-        (created?.next?.always as string | undefined) ||
-        (created?.next?.no_redirect as string | undefined) ||
-        null
-      );
+      setLoginLink(next?.always || next?.no_redirect || null);
 
       // Wait for the user to sign; resolved contains account info
       const resolved = await subscription.resolved;
@@ -115,8 +119,13 @@ export function useXumm() {
       return { signed: false, txid: null, error: 'XUMM not configured.' };
     }
 
+    const payloadApi = xumm.payload;
+    if (!payloadApi) {
+      return { signed: false, txid: null, error: 'XUMM payload API unavailable.' };
+    }
+
     try {
-      const subscription = await xumm.payload.createAndSubscribe(
+      const subscription = await payloadApi.createAndSubscribe(
         {
           txjson: txJson,
           options: {
@@ -133,14 +142,16 @@ export function useXumm() {
 
       const created = await subscription.created;
       const resolved = await subscription.resolved;
-      const txid = resolved?.response?.txid || resolved?.response?.hash || null;
-      const signed = Boolean(resolved?.response?.txid || resolved?.response?.hash);
+      const resolvedAny = resolved as any;
+      const txid = resolvedAny?.response?.txid || resolvedAny?.response?.hash || null;
+      const signed = Boolean(resolvedAny?.response?.txid || resolvedAny?.response?.hash);
+
+      const next = (created as any)?.next as { always?: string; no_redirect?: string } | undefined;
 
       return {
         signed,
         txid,
-        nextUrl:
-          created?.next?.always || created?.next?.no_redirect || null,
+        nextUrl: next?.always || next?.no_redirect || null,
         qrUrl: created?.refs?.qr_png || null,
         error: signed ? undefined : 'User rejected or payload expired.',
       };
