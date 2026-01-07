@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import WalletConnect from './components/WalletConnect';
 import BalanceDisplay from './components/BalanceDisplay';
 import TransactionHistory from './components/TransactionHistory';
-import FeedbackCTA from './components/FeedbackCTA';
 import RwaMint from './components/RwaMint';
 
 const queryClient = new QueryClient();
@@ -28,10 +27,6 @@ function App() {
         <main className="max-w-4xl mx-auto px-4 py-8">
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <WalletConnect />
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <FeedbackCTA />
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-6 mt-6">
