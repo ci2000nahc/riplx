@@ -65,9 +65,31 @@ async def verify_permission(address: str = Query(..., description="XRPL classic 
     if not address:
         raise HTTPException(status_code=400, detail="Missing address")
 
-    # Demo logic: always allow; extend with real DID/credential checks later.
+    allowlist = [addr.strip() for addr in settings.credential_allowlist.split(",") if addr.strip()]
+
+    if not allowlist:
+        # Temporary open gate for judging when no allowlist configured
+        return CredentialVerifyResponse(
+            allowed=True,
+            level=1,
+            reason="Allowlist empty - gate open (temporary)",
+            allowlist_hit=False,
+        )
+
+    hit = address in allowlist
+
+    if hit:
+        return CredentialVerifyResponse(
+            allowed=True,
+            level=1,
+            reason="Allowlisted address",
+            allowlist_hit=True,
+        )
+
+    # Default deny when not allowlisted (replace with real DID/credential checks)
     return CredentialVerifyResponse(
-        allowed=True,
-        level=1,
-        reason="Demo permission granted (mock verification)",
+        allowed=False,
+        level=0,
+        reason="Address not in credential allowlist (demo gate)",
+        allowlist_hit=False,
     )

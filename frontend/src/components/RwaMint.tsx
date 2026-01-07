@@ -7,19 +7,32 @@ import { useCredentialGate } from '../hooks/useCredentialGate';
 
 export default function RwaMint() {
   const address = useWalletStore((state) => state.address);
-  const { allowed, loading: gateLoading, reason } = useCredentialGate(address);
+  const { allowed, loading: gateLoading, reason, allowlistHit } = useCredentialGate(address);
   const [tier, setTier] = useState<'accredited' | 'local'>('accredited');
   const [amount, setAmount] = useState('1');
   const [txJson, setTxJson] = useState<any>(null);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [issuerSubmitting, setIssuerSubmitting] = useState(false);
+  const [issuerResult, setIssuerResult] = useState<string | null>(null);
+  const [issuerError, setIssuerError] = useState<string | null>(null);
+  const [issuerToken, setIssuerToken] = useState<string>(process.env.REACT_APP_ISSUER_SIGN_TOKEN || '');
+
+  const gateLabel = allowed
+    ? allowlistHit
+      ? 'Allowlisted'
+      : 'Gate open (judging mode)'
+    : 'Credential check: Pending/Not verified';
+  const canSubmit = allowed && !gateLoading && !loading;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     setTxJson(null);
+    setIssuerResult(null);
+    setIssuerError(null);
 
     if (!address) {
       setError('Connect your wallet first');
@@ -52,6 +65,40 @@ export default function RwaMint() {
     }
   };
 
+  const handleIssuerSubmit = async () => {
+    setIssuerError(null);
+    setIssuerResult(null);
+
+    if (!txJson) {
+      setIssuerError('Generate tx_json first');
+      return;
+    }
+
+    try {
+      setIssuerSubmitting(true);
+      const resp = await axios.post(
+        `${API_BASE_URL}/api/rwa/submit`,
+        { tx_json: txJson },
+        issuerToken
+          ? { headers: { 'X-Issuer-Token': issuerToken } }
+          : undefined
+      );
+      const er = resp.data.engine_result;
+      const txid = resp.data.txid;
+      setIssuerResult(
+        txid
+          ? `Submitted: ${txid}${er ? ` (${er})` : ''}`
+          : resp.data.message || 'Submitted'
+      );
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      const asString = typeof detail === 'string' ? detail : detail ? JSON.stringify(detail) : undefined;
+      setIssuerError(asString || err.message || 'Issuer submission failed');
+    } finally {
+      setIssuerSubmitting(false);
+    }
+  };
+
   if (!address) {
     return <div className="text-gray-500">Connect your wallet to mint gated RWA tokens.</div>;
   }
@@ -64,10 +111,10 @@ export default function RwaMint() {
       </p>
       <div className="mb-3 flex items-center gap-2 text-sm">
         <span className={`px-2 py-1 rounded ${allowed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
-          {allowed ? 'Credential check: Verified (demo)' : 'Credential check: Pending/Not verified'}
+          {gateLabel}
         </span>
         {gateLoading && <span className="text-gray-500">Verifying…</span>}
-        {reason && !allowed && <span className="text-amber-700">{reason}</span>}
+        {reason && <span className="text-amber-700">{reason}</span>}
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -101,12 +148,39 @@ export default function RwaMint() {
 {JSON.stringify(txJson, null, 2)}
           </pre>
         )}
+        {txJson && (
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-gray-800">Issuer submit (demo)</div>
+            <input
+              type="password"
+              value={issuerToken}
+              onChange={(e) => setIssuerToken(e.target.value)}
+              placeholder="Issuer token (optional if server left open)"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleIssuerSubmit}
+                disabled={issuerSubmitting}
+                className="w-full bg-emerald-600 text-white py-2 rounded hover:bg-emerald-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {issuerSubmitting ? 'Submitting…' : 'Submit as issuer (server signs)'}
+              </button>
+            </div>
+            {issuerError && <div className="bg-red-50 border border-red-200 text-red-700 p-2 rounded text-sm">{issuerError}</div>}
+            {issuerResult && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-2 rounded text-sm">{issuerResult}</div>}
+            <div className="text-xs text-gray-600">
+              Server must have ISSUER_SEED set. If ISSUER_SIGN_TOKEN is set on the server, enter it above.
+            </div>
+          </div>
+        )}
         <button
           type="submit"
-          disabled={loading}
+          disabled={!canSubmit}
           className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Preparing...' : 'Request mint (issuer signs)'}
+          {loading ? 'Preparing...' : gateLoading ? 'Checking credentials...' : 'Request mint (issuer signs)'}
         </button>
       </form>
     </div>

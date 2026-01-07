@@ -1,10 +1,17 @@
 """RWA minting (gated demo)."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from xrpl.clients import JsonRpcClient
 from xrpl.core.addresscodec import is_valid_classic_address
+from xrpl.transaction import safe_sign_and_submit_transaction_json
+from xrpl.wallet import Wallet
 from app.config import settings
-from app.models.schemas import RwaMintRequest, RwaMintResponse
+from app.models.schemas import (
+    RwaMintRequest,
+    RwaMintResponse,
+    RwaSubmitRequest,
+    RwaSubmitResponse,
+)
 
 router = APIRouter()
 client = JsonRpcClient(settings.xrpl_rpc_url)
@@ -47,3 +54,65 @@ async def mint_rwa(req: RwaMintRequest):
         message="Mint request accepted (demo). Issuer must sign and submit the tx_json.",
         tx_json=tx_json,
     )
+
+
+@router.post("/submit", response_model=RwaSubmitResponse)
+async def submit_rwa_tx(
+    req: RwaSubmitRequest,
+    x_issuer_token: str | None = Header(default=None, convert_underscores=False),
+):
+        if settings.issuer_sign_token:
+            if x_issuer_token != settings.issuer_sign_token:
+                raise HTTPException(status_code=401, detail="Invalid issuer signing token")
+    """Issuer signs and submits a prepared RWA mint tx_json (demo only).
+
+    Security: this endpoint uses ISSUER_SEED from environment. Only enable in controlled/demo environments.
+    """
+
+    if not settings.issuer_seed:
+        raise HTTPException(status_code=400, detail="ISSUER_SEED not configured on server")
+
+    tx_json = req.tx_json or {}
+
+    if tx_json.get("TransactionType") != "Payment":
+        raise HTTPException(status_code=400, detail="tx_json must be a Payment transaction")
+
+    if tx_json.get("Account") not in {None, "", settings.rlusd_issuer}:
+        raise HTTPException(status_code=400, detail="Account must be the configured issuer")
+
+    amount = tx_json.get("Amount")
+    if not isinstance(amount, dict):
+        raise HTTPException(status_code=400, detail="Amount must be an issued-currency object")
+
+    currency = amount.get("currency")
+    issuer = amount.get("issuer")
+    if issuer != settings.rlusd_issuer:
+        raise HTTPException(status_code=400, detail="Amount issuer must match configured issuer")
+    if currency not in {"RWAACC", "RWALOC"}:
+        raise HTTPException(status_code=400, detail="currency must be RWAACC or RWALOC")
+
+    destination = tx_json.get("Destination")
+    if not is_valid_classic_address(destination):
+        raise HTTPException(status_code=400, detail="Destination must be a valid XRPL classic address")
+
+    # Force issuer account to match environment configuration
+    tx_json["Account"] = settings.rlusd_issuer
+
+    try:
+        wallet = Wallet.from_seed(settings.issuer_seed)
+        result = safe_sign_and_submit_transaction_json(tx_json, wallet, client)
+        engine_result = result.result.get("engine_result")
+        txid = result.result.get("tx_json", {}).get("hash") or result.result.get("hash")
+        submitted = engine_result in {"tesSUCCESS", "terQUEUED"}
+
+        return RwaSubmitResponse(
+            submitted=submitted,
+            txid=txid,
+            engine_result=engine_result,
+            message="Submitted to XRPL"
+            if submitted
+            else f"Submission returned {engine_result or 'unknown'}",
+            error=None if submitted else result.result.get("engine_result_message"),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

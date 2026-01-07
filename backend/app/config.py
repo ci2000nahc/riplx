@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     xumm_api_key: Optional[str] = None
     xumm_api_secret: Optional[str] = None
 
+    # Credential allowlist for demo permissioning (comma-separated XRPL addresses)
+    credential_allowlist: str = ""
+
     # Server Configuration
     backend_port: int = 8000
     backend_host: str = "0.0.0.0"
@@ -31,6 +34,7 @@ class Settings(BaseSettings):
     # DID & Credentials (for credential issuing service)
     issuer_seed: Optional[str] = None
     issuer_address: Optional[str] = None
+    issuer_sign_token: Optional[str] = None
 
     class Config:
         # Load env from backend/.env first, fallback to repo root .env

@@ -125,6 +125,7 @@ class CredentialVerifyResponse(BaseModel):
     allowed: bool
     level: int = 1
     reason: Optional[str] = None
+    allowlist_hit: bool = False
 
 
 class RwaMintRequest(BaseModel):
@@ -143,3 +144,19 @@ class RwaMintResponse(BaseModel):
     tier: str
     message: str
     tx_json: dict
+
+
+class RwaSubmitRequest(BaseModel):
+    """Request to sign and submit an issuer tx_json."""
+
+    tx_json: dict
+
+
+class RwaSubmitResponse(BaseModel):
+    """Response for issuer signing/submission."""
+
+    submitted: bool
+    txid: Optional[str] = None
+    engine_result: Optional[str] = None
+    message: str
+    error: Optional[str] = None

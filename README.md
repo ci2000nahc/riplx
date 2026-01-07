@@ -47,8 +47,10 @@ A consumer-facing payment application for Ripple USD (RLUSD) on the XRP Ledger. 
    - Accredited: code `RWAACC`
    - Local resident: code `RWALOC`
 - Endpoint: `POST /api/rwa/mint` returns a Payment `tx_json` from the issuer to the requester; issuer must sign and submit.
+- Issuer submit helper: `POST /api/rwa/submit` signs + submits the returned `tx_json` using `ISSUER_SEED` (demo-only). If `ISSUER_SIGN_TOKEN` is set, call with header `X-Issuer-Token`.
 - Trustline required: recipient must add a trustline to the issuer/token code before settlement.
-- Credential gate currently mocked for demo; replace with real DID/credential verification in production.
+- Credential gate: allowlist-based demo. If `CREDENTIAL_ALLOWLIST` is empty, the gate is OPEN (judging mode). To lock it, set comma-separated XRPL classic addresses in `CREDENTIAL_ALLOWLIST` and restart backend.
+- Frontend issuer button uses optional `REACT_APP_ISSUER_SIGN_TOKEN` to pass the signing token header when required.
 
 ## Frontend Deploy (Vercel)
 
