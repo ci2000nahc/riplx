@@ -108,8 +108,17 @@ export function useXumm() {
       );
 
       const created = await subscription.created;
+      console.log('XUMM payload created', created);
       const refs = (created as any)?.refs as { qr_png?: string } | undefined;
       const next = (created as any)?.next as { always?: string; no_redirect?: string } | undefined;
+      if (!refs?.qr_png && !next?.always && !next?.no_redirect) {
+        setState((s) => ({
+          ...s,
+          isConnecting: false,
+          error: 'XUMM payload returned no QR/deeplink. Check API key type and Allowed Origins.',
+        }));
+        throw new Error('XUMM payload returned no QR/deeplink');
+      }
       setState((s) => ({
         ...s,
         loginQr: refs?.qr_png || null,
@@ -117,6 +126,7 @@ export function useXumm() {
       }));
 
       const resolved = await subscription.resolved;
+      console.log('XUMM payload resolved', resolved);
       const response = (resolved as any)?.response;
       const acct = response?.account as string | undefined;
       const signed = Boolean(response?.signed);
