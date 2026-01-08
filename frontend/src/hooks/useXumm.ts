@@ -27,10 +27,25 @@ export function useXumm() {
   }, [apiKey]);
 
   useEffect(() => {
+    const origin = window.location.origin;
+    const handleUnhandledRejection = (evt: PromiseRejectionEvent) => {
+      const reason = evt?.reason;
+      const msg = typeof reason === 'string' ? reason : reason?.message;
+      const looksLikeOriginBlock = msg?.includes('getSiteMeta') || msg === 'false';
+      if (looksLikeOriginBlock) {
+        setError(`XUMM rejected this origin (${origin}). Add it to Allowed Origins for this API key.`);
+        setIsLoading(false);
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
     if (!xumm) {
       setError('XUMM is not configured. Set REACT_APP_XUMM_API_KEY.');
       setIsLoading(false);
-      return undefined;
+      return () => {
+        window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      };
     }
 
     setIsLoading(true);
@@ -67,6 +82,7 @@ export function useXumm() {
         // ignore cleanup errors
       }
       clearTimeout(timeout);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [xumm]);
