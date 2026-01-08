@@ -52,17 +52,6 @@ export function useXumm() {
 
     setState((s) => ({ ...s, isConnecting: true, error: null, loginQr: null, loginLink: null }));
 
-    // Failsafe timeout so the UI doesn't hang silently.
-    let timeout: number | undefined;
-    const failSlow = (msg: string) => {
-      setState((s) => ({ ...s, isConnecting: false, error: msg }));
-    };
-    if (typeof window !== 'undefined') {
-      timeout = window.setTimeout(() => {
-        failSlow('No QR/deeplink received yet. Check Allowed Origins, Web/Browser toggle, and test device.');
-      }, 10000);
-    }
-
     try {
       // Server-side payload creation
       const create = await axios.post(`${apiBase}/auth/xumm/signin`);
@@ -93,7 +82,6 @@ export function useXumm() {
             polling: false,
             error: null,
           }));
-          if (timeout !== undefined) window.clearTimeout(timeout);
           return acct;
         }
         attempts += 1;
@@ -109,7 +97,6 @@ export function useXumm() {
       const suffix = ref ? ` [ref ${ref}]` : status ? ` (status ${status})` : '';
       console.error('XUMM connect failed:', err);
       setState((s) => ({ ...s, error: `${msg}${suffix}`, isConnecting: false, polling: false }));
-      if (timeout !== undefined) window.clearTimeout(timeout);
       throw err;
     }
   };

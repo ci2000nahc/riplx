@@ -53,14 +53,6 @@ function ConnectCard() {
         <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded text-sm">{error}</div>
       )}
 
-      {loginLink && (
-        <div className="text-sm text-blue-800 bg-blue-50 border border-blue-200 p-3 rounded">
-          <a href={loginLink} target="_blank" rel="noreferrer" className="underline font-semibold">
-            Open sign-in prompt
-          </a>
-        </div>
-      )}
-
       {loginQr && (
         <div className="flex flex-col items-center gap-2">
           <div className="text-sm text-slate-700">Scan with XUMM / Xaman</div>
