@@ -6,9 +6,21 @@ from datetime import datetime
 from uuid import uuid4
 from typing import Dict, List
 
+from xrpl.clients import JsonRpcClient
+from xrpl.transaction import safe_sign_and_submit_transaction
+from xrpl.models.transactions import NFTokenMint
+from xrpl.wallet import Wallet
+from xrpl.models.requests import AccountNFTs
+from xrpl.utils import str_to_hex
+
 XUMM_API_KEY = os.getenv("XUMM_API_KEY")
 XUMM_API_SECRET = os.getenv("XUMM_API_SECRET")
 XUMM_API_BASE = "https://xumm.app/api/v1/platform"
+
+XRPL_RPC_URL = os.getenv("XRPL_RPC_URL", "https://s.altnet.rippletest.net:51234")
+XRPL_ISSUER_SEED = os.getenv("XRPL_ISSUER_SEED")
+XRPL_CREDENTIAL_TAXON = int(os.getenv("XRPL_CREDENTIAL_TAXON", "1"))
+XRPL_RWA_TAXON = int(os.getenv("XRPL_RWA_TAXON", "2"))
 
 app = FastAPI(title="riplx-backend", version="0.0.1")
 
@@ -70,21 +82,43 @@ def create_did():
 @app.post("/credentials/issue")
 def issue_credential(account: str, credential_type: str, subject_name: str | None = None):
     _ensure_account(account)
-    record = _store_credential(account, credential_type, {"subject_name": subject_name} if subject_name else None)
-    return {"issued": True, "credential": record}
+    uri = f"cred:{credential_type}:{subject_name or ''}:{datetime.utcnow().isoformat()}"
+    minted = _mint_nft(account, uri, XRPL_CREDENTIAL_TAXON)
+    return {"issued": True, "tx": minted, "credential_type": credential_type}
 
 
 @app.get("/credentials/{account}")
 def list_credentials(account: str):
     _ensure_account(account)
-    return {"credentials": credential_store.get(account, [])}
+    client = _xrpl_client()
+    wallet = _issuer_wallet()
+    try:
+        resp = client.request(AccountNFTs(account=account))
+        nfts = resp.result.get("account_nfts", [])
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"XRPL query failed: {exc}")
+    creds = []
+    for nft in nfts:
+        if nft.get("Issuer") != wallet.classic_address:
+            continue
+        uri_hex = nft.get("URI")
+        uri_text = ""
+        if uri_hex:
+            try:
+                uri_text = bytes.fromhex(uri_hex).decode()
+            except Exception:
+                uri_text = ""
+        creds.append({
+            "nft_id": nft.get("NFTokenID"),
+            "uri": uri_text,
+        })
+    return {"credentials": creds}
 
 
 @app.get("/credentials/{account}/check")
 def check_credential(account: str, credential_type: str):
     _ensure_account(account)
-    creds = credential_store.get(account, [])
-    has_cred = any(c.get("credential_type") == credential_type for c in creds)
+    has_cred = _account_has_credential(account, credential_type)
     return {"has_credential": has_cred}
 
 
@@ -95,9 +129,12 @@ def list_rwa_assets():
 
 @app.post("/trustlines/rlusd")
 def set_trustline(account: str):
+    # Trustlines require the user's signature; backend cannot set it. Return instructional response.
     _ensure_account(account)
-    trustlines[account] = {"rlusd": True, "updated_at": datetime.utcnow().isoformat() + "Z"}
-    return {"trustline_set": True, "account": account}
+    return {
+        "trustline_set": False,
+        "instruction": "User must set RLUSD trustline in wallet; backend cannot sign on behalf of user.",
+    }
 
 
 @app.post("/rwa/mint")
@@ -107,16 +144,14 @@ def mint_rwa(account: str, asset_id: str):
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     required = asset.get("requires_credential")
-    if required and not any(c.get("credential_type") == required for c in credential_store.get(account, [])):
+    if required and not _account_has_credential(account, required):
         raise HTTPException(status_code=403, detail="Missing required credential")
-    if account not in trustlines:
-        raise HTTPException(status_code=403, detail="RLUSD trustline not set")
 
-    tx_hash = f"TESTNET-TX-{uuid4()}"
+    uri = f"rwa:{asset_id}:{datetime.utcnow().isoformat()}"
+    minted = _mint_nft(account, uri, XRPL_RWA_TAXON)
     minted_token = {
         "asset_id": asset_id,
-        "token_id": f"RWA-{asset_id}-{uuid4()}",
-        "tx_hash": tx_hash,
+        "tx_hash": minted.get("tx_hash"),
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
     return {"minted": True, "result": minted_token}
@@ -136,17 +171,60 @@ def _ensure_account(account: str):
         raise HTTPException(status_code=400, detail="Invalid account address provided.")
 
 
-def _store_credential(account: str, credential_type: str, metadata: dict | None = None):
-    record = {
-        "id": str(uuid4()),
-        "account": account,
-        "issuer_did": ISSUER_DID,
-        "credential_type": credential_type,
-        "issued_at": datetime.utcnow().isoformat() + "Z",
-        "meta": metadata or {},
+def _xrpl_client():
+    return JsonRpcClient(XRPL_RPC_URL)
+
+
+def _issuer_wallet():
+    if not XRPL_ISSUER_SEED:
+        raise HTTPException(status_code=500, detail="XRPL_ISSUER_SEED not configured")
+    return Wallet.from_seed(XRPL_ISSUER_SEED)
+
+
+def _mint_nft(destination: str, uri_text: str, taxon: int):
+    client = _xrpl_client()
+    wallet = _issuer_wallet()
+    tx = NFTokenMint(
+        account=wallet.classic_address,
+        uri=str_to_hex(uri_text),
+        nftoken_taxon=taxon,
+        transfer_fee=0,
+        flags=8,  # tfTransferable so recipient can move it
+        destination=destination,
+    )
+    try:
+        result = safe_sign_and_submit_transaction(tx, wallet, client)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"XRPL submit failed: {exc}")
+    engine = result.result.get("engine_result")
+    if engine not in {"tesSUCCESS", "tecDUPLICATE"}:
+        raise HTTPException(status_code=502, detail=f"XRPL engine_result {engine}")
+    return {
+        "tx_hash": result.result.get("tx_json", {}).get("hash"),
+        "engine_result": engine,
     }
-    credential_store.setdefault(account, []).append(record)
-    return record
+
+
+def _account_has_credential(account: str, credential_type: str):
+    client = _xrpl_client()
+    wallet = _issuer_wallet()
+    try:
+        resp = client.request(AccountNFTs(account=account))
+        nfts = resp.result.get("account_nfts", [])
+    except Exception:
+        return False
+    for nft in nfts:
+        if nft.get("Issuer") != wallet.classic_address:
+            continue
+        uri_hex = nft.get("URI")
+        if uri_hex:
+            try:
+                uri_text = bytes.fromhex(uri_hex).decode()
+            except Exception:
+                uri_text = ""
+            if credential_type in uri_text:
+                return True
+    return False
 
 
 @app.post("/auth/xumm/signin")

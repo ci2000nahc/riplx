@@ -14,7 +14,6 @@ function ConnectCard() {
   const [assets, setAssets] = useState<{ id: string; name: string; description: string; price_rlusd: string; requires_credential?: string }[]>([]);
   const [hasAccredited, setHasAccredited] = useState(false);
   const [hasKyc, setHasKyc] = useState(false);
-  const [trustlineReady, setTrustlineReady] = useState(false);
   const [issuerTarget, setIssuerTarget] = useState('');
   const [kycForm, setKycForm] = useState({ name: '', email: '', idNumber: '' });
   const [messages, setMessages] = useState<{ id: string; text: string; tone?: 'success' | 'error' }[]>([]);
@@ -71,18 +70,6 @@ function ConnectCard() {
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || 'Failed to issue credential';
       toast(msg, 'error');
-    }
-  };
-
-  const setTrustline = async () => {
-    if (!address) return toast('Connect wallet first.', 'error');
-    if (!guardApi()) return;
-    try {
-      await axios.post(`${apiBase}/trustlines/rlusd`, null, { params: { account: address } });
-      setTrustlineReady(true);
-      toast('RLUSD trustline set (simulated).');
-    } catch (e: any) {
-      toast(e?.response?.data?.detail || 'Failed to set trustline', 'error');
     }
   };
 
@@ -210,18 +197,9 @@ function ConnectCard() {
             <span className={`px-2 py-1 rounded ${hasKyc ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-600'}`}>
               KYC {hasKyc ? '✓' : ''}
             </span>
-            <span className={`px-2 py-1 rounded ${trustlineReady ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'}`}>
-              RLUSD trustline {trustlineReady ? '✓' : ''}
-            </span>
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={setTrustline}
-            className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm"
-          >
-            Set RLUSD trustline
-          </button>
           <button
             onClick={() => {
               if (!address) return;
@@ -236,6 +214,7 @@ function ConnectCard() {
           >
             Refresh status
           </button>
+          <div className="text-xs text-slate-600 self-center">Trustline must be set in wallet (backend cannot sign for you).</div>
         </div>
       </div>
 
@@ -245,7 +224,7 @@ function ConnectCard() {
           {assets.map((asset) => {
             const credentialNeeded = asset.requires_credential;
             const hasRequired = credentialNeeded === 'accredited' ? hasAccredited : credentialNeeded === 'kyc-verified' ? hasKyc : true;
-            const blocked = !hasRequired || !trustlineReady;
+              const blocked = !hasRequired;
             return (
               <div key={asset.id} className="border border-slate-200 rounded-lg p-3 space-y-2">
                 <div className="font-semibold text-slate-800">{asset.name}</div>
