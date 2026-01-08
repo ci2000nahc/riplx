@@ -46,10 +46,15 @@ async def mint_rwa(req: RwaMintRequest):
     """
 
     if req.tier.lower() not in {"accredited", "local"}:
-        raise HTTPException(status_code=400, detail="tier must be 'accredited' or 'local'")
+        raise HTTPException(
+            status_code=400, detail="tier must be 'accredited' or 'local'"
+        )
 
     if not is_valid_classic_address(req.address):
-        raise HTTPException(status_code=400, detail="Destination address is not a valid XRPL classic address")
+        raise HTTPException(
+            status_code=400,
+            detail="Destination address is not a valid XRPL classic address",
+        )
 
     token_code = "RWAACC" if req.tier.lower() == "accredited" else "RWALOC"
 
@@ -89,30 +94,42 @@ async def submit_rwa_tx(
             raise HTTPException(status_code=401, detail="Invalid issuer signing token")
 
     if not settings.issuer_seed:
-        raise HTTPException(status_code=400, detail="ISSUER_SEED not configured on server")
+        raise HTTPException(
+            status_code=400, detail="ISSUER_SEED not configured on server"
+        )
 
     tx_json = req.tx_json or {}
 
     if tx_json.get("TransactionType") != "Payment":
-        raise HTTPException(status_code=400, detail="tx_json must be a Payment transaction")
+        raise HTTPException(
+            status_code=400, detail="tx_json must be a Payment transaction"
+        )
 
     if tx_json.get("Account") not in {None, "", settings.rlusd_issuer}:
-        raise HTTPException(status_code=400, detail="Account must be the configured issuer")
+        raise HTTPException(
+            status_code=400, detail="Account must be the configured issuer"
+        )
 
     amount = tx_json.get("Amount")
     if not isinstance(amount, dict):
-        raise HTTPException(status_code=400, detail="Amount must be an issued-currency object")
+        raise HTTPException(
+            status_code=400, detail="Amount must be an issued-currency object"
+        )
 
     currency = amount.get("currency")
     issuer = amount.get("issuer")
     if issuer != settings.rlusd_issuer:
-        raise HTTPException(status_code=400, detail="Amount issuer must match configured issuer")
+        raise HTTPException(
+            status_code=400, detail="Amount issuer must match configured issuer"
+        )
     if currency not in {"RWAACC", "RWALOC"}:
         raise HTTPException(status_code=400, detail="currency must be RWAACC or RWALOC")
 
     destination = tx_json.get("Destination")
     if not is_valid_classic_address(destination):
-        raise HTTPException(status_code=400, detail="Destination must be a valid XRPL classic address")
+        raise HTTPException(
+            status_code=400, detail="Destination must be a valid XRPL classic address"
+        )
 
     # Force issuer account to match environment configuration
     tx_json["Account"] = settings.rlusd_issuer
@@ -130,10 +147,14 @@ async def submit_rwa_tx(
             issuer=settings.rlusd_issuer,
             value=str(amount.get("value")),
         )
-        payment = Payment(account=settings.rlusd_issuer, destination=destination, amount=issued_amount)
+        payment = Payment(
+            account=settings.rlusd_issuer, destination=destination, amount=issued_amount
+        )
 
         # Sign and submit using async client to avoid nested event loop issues
-        result = await xrpl_tx.sign_and_submit(payment, async_client, wallet, autofill=True)
+        result = await xrpl_tx.sign_and_submit(
+            payment, async_client, wallet, autofill=True
+        )
         engine_result = result.result.get("engine_result")
         txid = result.result.get("tx_json", {}).get("hash") or result.result.get("hash")
         submitted = engine_result in {"tesSUCCESS", "terQUEUED"}
@@ -158,7 +179,7 @@ async def prepare_rwa_trustline(req: RwaTrustlineRequest):
     if not settings.xumm_api_key or not settings.xumm_api_secret:
         raise HTTPException(
             status_code=500,
-            detail="Missing XUMM_API_KEY or XUMM_API_SECRET. Set them in the environment to enable trustlines.",
+            detail="Missing REACT_APP_XUMM_API_KEY or REACT_APP_XUMM_API_SECRET. Set them in the environment to enable trustlines.",
         )
 
     code = req.code

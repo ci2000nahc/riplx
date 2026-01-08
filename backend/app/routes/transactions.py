@@ -186,7 +186,7 @@ async def prepare_xumm(req: TransactionRequest):
     if not settings.xumm_api_key or not settings.xumm_api_secret:
         raise HTTPException(
             status_code=500,
-            detail="Missing XUMM_API_KEY or XUMM_API_SECRET. Set them in the environment to enable RLUSD.",
+            detail="Missing REACT_APP_XUMM_API_KEY or REACT_APP_XUMM_API_SECRET. Set them in the environment to enable RLUSD.",
         )
 
     if not is_valid_classic_address(req.destination):
@@ -258,7 +258,7 @@ async def prepare_xumm_trustline():
     if not settings.xumm_api_key or not settings.xumm_api_secret:
         raise HTTPException(
             status_code=500,
-            detail="Missing XUMM_API_KEY or XUMM_API_SECRET. Set them in the environment to enable RLUSD.",
+            detail="Missing REACT_APP_XUMM_API_KEY or REACT_APP_XUMM_API_SECRET. Set them in the environment to enable RLUSD.",
         )
 
     if not is_valid_classic_address(settings.rlusd_issuer):
@@ -322,7 +322,7 @@ async def xumm_status(uuid: str):
     if not settings.xumm_api_key or not settings.xumm_api_secret:
         raise HTTPException(
             status_code=500,
-            detail="Missing XUMM_API_KEY or XUMM_API_SECRET. Set them in the environment to enable RLUSD.",
+            detail="Missing REACT_APP_XUMM_API_KEY or REACT_APP_XUMM_API_SECRET. Set them in the environment to enable RLUSD.",
         )
 
     headers = {

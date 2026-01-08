@@ -43,16 +43,16 @@ A consumer-facing payment application for Ripple USD (RLUSD) on the XRP Ledger. 
 ## Gated RWA Mint (Demo)
 
 - New portal flow: only credential-verified users (demo gate) can request mint of RWA tokens by tier:
-   - Accredited: code `RWAACC`
-   - Local resident: code `RWALOC`
+  - Accredited: code `RWAACC`
+  - Local resident: code `RWALOC`
 - Endpoint: `POST /api/rwa/mint` returns a Payment `tx_json` from the issuer to the requester; issuer must sign and submit.
 - Issuer submit helper: `POST /api/rwa/submit` signs + submits the returned `tx_json` using `ISSUER_SEED` (demo-only). If `ISSUER_SIGN_TOKEN` is set, call with header `X-Issuer-Token`.
 - Trustline required: recipient must add a trustline to the issuer/token code before settlement.
 - Credential gate options: on-ledger credential or allowlist fallback. If `CREDENTIAL_ALLOWLIST` is empty, the gate is OPEN (judging mode). To lock it, set comma-separated XRPL classic addresses in `CREDENTIAL_ALLOWLIST` and restart backend.
 - On-ledger credential path (ACCREDITED):
-   - **Issue**: `POST /api/credentials/create` (admin token header `X-Credential-Token` if set). Uses `CREDENTIAL_ISSUER_SEED`, `CREDENTIAL_ISSUER_ADDRESS`, and `CREDENTIAL_TYPE_HEX` (defaults to `ACCREDITED`).
-   - **Accept**: Crossmark currently rejects `CredentialAccept` on testnet; use allowlist/judging mode instead for the live demo. If you have a wallet/network that supports `CredentialAccept`, sign it client-side and submit as usual.
-   - **Verify**: `GET /api/credentials/status` checks `lsfAccepted` via `ledger_entry` (for networks/wallets that support credential acceptance). Mint button unlocks when accepted.
+  - **Issue**: `POST /api/credentials/create` (admin token header `X-Credential-Token` if set). Uses `CREDENTIAL_ISSUER_SEED`, `CREDENTIAL_ISSUER_ADDRESS`, and `CREDENTIAL_TYPE_HEX` (defaults to `ACCREDITED`).
+  - **Accept**: Crossmark currently rejects `CredentialAccept` on testnet; use allowlist/judging mode instead for the live demo. If you have a wallet/network that supports `CredentialAccept`, sign it client-side and submit as usual.
+  - **Verify**: `GET /api/credentials/status` checks `lsfAccepted` via `ledger_entry` (for networks/wallets that support credential acceptance). Mint button unlocks when accepted.
 - Frontend issuer button uses optional `REACT_APP_ISSUER_SIGN_TOKEN` to pass the signing token header when required. Frontend credential accept uses `REACT_APP_CREDENTIAL_ISSUER_ADDRESS` and `REACT_APP_CREDENTIAL_TYPE_HEX` (defaults provided).
 
 ## Frontend Deploy (Vercel)
@@ -97,8 +97,8 @@ npm install
 ```bash
 cd backend
 source venv/bin/activate
-export XUMM_API_KEY="your_xumm_key"       # required for RLUSD via XUMM
-export XUMM_API_SECRET="your_xumm_secret" # required for RLUSD via XUMM
+export REACT_APP_XUMM_API_KEY="your_xumm_key"       # required for RLUSD via XUMM
+export REACT_APP_XUMM_API_SECRET="your_xumm_secret" # required for RLUSD via XUMM
 python -m uvicorn app.main:app --reload --port 8000
 ```
 

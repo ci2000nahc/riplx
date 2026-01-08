@@ -20,14 +20,28 @@ export function useXumm() {
 
   const xumm = useMemo(() => {
     if (!apiKey) {
-      console.warn('XUMM_API_KEY missing; set REACT_APP_XUMM_API_KEY.');
+      console.warn('REACT_APP_XUMM_API_KEY missing; set REACT_APP_XUMM_API_KEY.');
       return null;
     }
     return new Xumm(apiKey);
   }, [apiKey]);
 
   useEffect(() => {
-    if (!xumm) return undefined;
+    if (!xumm) {
+      setError('XUMM is not configured. Set REACT_APP_XUMM_API_KEY.');
+      setIsLoading(false);
+      return undefined;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    const timeout = setTimeout(() => {
+      if (!address) {
+        setError('XUMM init timed out. Ensure riplx.vercel.app (and *.vercel.app) are in Allowed Origins for this API key.');
+        setIsLoading(false);
+      }
+    }, 8000);
 
     const handleReady = () => {
       xumm.user.account
@@ -35,9 +49,14 @@ export function useXumm() {
           if (acct) {
             setAddress(acct);
             setIsConnected(true);
+            setIsLoading(false);
+            setError(null);
           }
         })
-        .catch(() => undefined);
+        .catch(() => {
+          setError('XUMM failed to read session. Check Allowed Origins and try reconnect.');
+          setIsLoading(false);
+        });
     };
 
     xumm.on('ready', handleReady);
@@ -47,7 +66,9 @@ export function useXumm() {
       } catch {
         // ignore cleanup errors
       }
+      clearTimeout(timeout);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [xumm]);
 
   const connect = async () => {
