@@ -7,7 +7,6 @@ type ConnectState = {
   error: string | null;
   loginQr: string | null;
   loginLink: string | null;
-  origin: string;
   polling: boolean;
 };
 
@@ -22,7 +21,6 @@ export function useXumm() {
     error: null,
     loginQr: null,
     loginLink: null,
-    origin,
     polling: false,
   });
 
@@ -104,7 +102,6 @@ export function useXumm() {
   return {
     ...state,
     apiKey,
-    apiBase,
     connect,
   };
 }

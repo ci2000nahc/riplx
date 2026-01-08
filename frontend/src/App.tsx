@@ -5,7 +5,7 @@ import './index.css';
 const queryClient = new QueryClient();
 
 function ConnectCard() {
-  const { address, apiKey, apiBase, isConnecting, isReady, error, loginQr, loginLink, connect, origin } = useXumm();
+  const { address, apiKey, isConnecting, isReady, error, loginQr, loginLink, connect } = useXumm();
   const keySuffix = apiKey ? apiKey.slice(-4) : 'none';
 
   return (
@@ -18,11 +18,6 @@ function ConnectCard() {
         <div className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
           Key suffix: {keySuffix}
         </div>
-      </div>
-
-      <div className="text-sm text-slate-600 space-y-1">
-        <div>Origin: {origin}</div>
-        <div>API base: {apiBase || 'not set'}</div>
       </div>
 
       {address ? (
