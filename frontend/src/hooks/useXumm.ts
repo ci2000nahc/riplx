@@ -70,13 +70,19 @@ export function useXumm() {
           setState((s) => ({ ...s, error: 'XUMM session not found. Please connect.' }));
         });
 
-      xumm.environment.xapp
-        .then((flag) => {
-          setState((s) => ({ ...s, isXApp: Boolean(flag) }));
-        })
-        .catch(() => {
-          // ignore
-        });
+      try {
+        const maybeFlag = (xumm as any)?.environment?.xapp;
+        if (maybeFlag === undefined) return;
+        if (typeof maybeFlag === 'boolean') {
+          setState((s) => ({ ...s, isXApp: maybeFlag }));
+        } else if (typeof maybeFlag?.then === 'function') {
+          maybeFlag
+            .then((flag: any) => setState((s) => ({ ...s, isXApp: Boolean(flag) })))
+            .catch(() => undefined);
+        }
+      } catch {
+        // ignore
+      }
     };
 
     xumm.on('ready', onReady);
@@ -108,7 +114,14 @@ export function useXumm() {
 
     try {
       // If running inside Xaman/xApp, the user is already in-app; no QR needed.
-      const insideXApp = await xumm.environment.xapp.catch(() => false);
+      let insideXApp = false;
+      try {
+        const maybe = (xumm as any)?.environment?.xapp;
+        if (typeof maybe === 'boolean') insideXApp = maybe;
+        else if (typeof maybe?.then === 'function') insideXApp = Boolean(await maybe);
+      } catch {
+        insideXApp = false;
+      }
       if (insideXApp) {
         const acct = await xumm.user.account.catch(() => null);
         if (!acct) {
