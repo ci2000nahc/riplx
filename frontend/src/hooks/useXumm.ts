@@ -25,7 +25,10 @@ export function useXumm() {
     }
     // Expose for quick console sanity checks (first/last 4 chars only)
     (window as any)._xummApiKey = `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
-    return new Xumm(apiKey);
+    const client = new Xumm(apiKey);
+    // Expose the client for debugging (e.g., window._xummClient.environment.getSiteMeta())
+    (window as any)._xummClient = client;
+    return client;
   }, [apiKey]);
 
   useEffect(() => {
