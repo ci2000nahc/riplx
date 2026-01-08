@@ -1,216 +1,150 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Xumm } from 'xumm';
 
-interface SignResult {
-  signed: boolean;
-  txid: string | null;
-  nextUrl?: string | null;
-  qrUrl?: string | null;
-  error?: string;
-}
+type ConnectState = {
+  address: string | null;
+  isConnecting: boolean;
+  isReady: boolean;
+  error: string | null;
+  loginQr: string | null;
+  loginLink: string | null;
+  origin: string;
+};
 
 export function useXumm() {
-  const apiKey = process.env.REACT_APP_XUMM_API_KEY;
-  const [address, setAddress] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loginQr, setLoginQr] = useState<string | null>(null);
-  const [loginLink, setLoginLink] = useState<string | null>(null);
+  const apiKey = import.meta.env.VITE_XUMM_API_KEY as string | undefined;
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+  const [state, setState] = useState<ConnectState>({
+    address: null,
+    isConnecting: false,
+    isReady: false,
+    error: null,
+    loginQr: null,
+    loginLink: null,
+    origin,
+  });
 
   const xumm = useMemo(() => {
-    if (!apiKey) {
-      console.warn('REACT_APP_XUMM_API_KEY missing; set REACT_APP_XUMM_API_KEY.');
-      return null;
-    }
-    // Expose for quick console sanity checks (first/last 4 chars only)
-    (window as any)._xummApiKey = `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
+    if (typeof window === 'undefined') return null;
+    if (!apiKey) return null;
     const client = new Xumm(apiKey);
-    // Expose the client for debugging (e.g., window._xummClient.environment.getSiteMeta())
     (window as any)._xummClient = client;
+    (window as any)._xummApiKey = `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
     return client;
   }, [apiKey]);
 
   useEffect(() => {
-    const origin = window.location.origin;
-    const handleUnhandledRejection = (evt: PromiseRejectionEvent) => {
-      const reason = evt?.reason;
-      const msg = typeof reason === 'string' ? reason : reason?.message;
-      const looksLikeOriginBlock = msg?.includes('getSiteMeta') || msg === 'false';
-      if (looksLikeOriginBlock) {
-        setError(`XUMM rejected this origin (${origin}). Add it to Allowed Origins for this API key.`);
-        setIsLoading(false);
+    if (!xumm) {
+      setState((s) => ({
+        ...s,
+        error: apiKey ? 'XUMM SDK unavailable in this context.' : 'VITE_XUMM_API_KEY is not set.',
+        isReady: false,
+      }));
+      return undefined;
+    }
+
+    const onUnhandledRejection = (evt: PromiseRejectionEvent) => {
+      const msg = typeof evt.reason === 'string' ? evt.reason : evt.reason?.message;
+      if (msg === 'false' || msg?.includes('getSiteMeta')) {
+        setState((s) => ({
+          ...s,
+          error: `XUMM rejected this origin (${origin}). Add it to Allowed Origins for this API key and enable Web/Browser.`,
+          isConnecting: false,
+        }));
       }
     };
 
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('unhandledrejection', onUnhandledRejection);
 
-    if (!xumm) {
-      setError('XUMM is not configured. Set REACT_APP_XUMM_API_KEY.');
-      setIsLoading(false);
-      return () => {
-        window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-      };
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    const timeout = setTimeout(() => {
-      if (!address) {
-        setError('XUMM init timed out. Ensure riplx.vercel.app (and *.vercel.app) are in Allowed Origins for this API key.');
-        setIsLoading(false);
-      }
-    }, 8000);
-
-    const handleReady = () => {
+    const onReady = () => {
+      setState((s) => ({ ...s, isReady: true, error: null }));
       xumm.user.account
         .then((acct) => {
           if (acct) {
-            setAddress(acct);
-            setIsConnected(true);
-            setIsLoading(false);
-            setError(null);
+            setState((s) => ({ ...s, address: acct }));
           }
         })
         .catch(() => {
-          setError('XUMM failed to read session. Check Allowed Origins and try reconnect.');
-          setIsLoading(false);
+          setState((s) => ({ ...s, error: 'XUMM session not found. Please connect.' }));
         });
     };
 
-    xumm.on('ready', handleReady);
+    xumm.on('ready', onReady);
+
     return () => {
       try {
-        xumm.off('ready', handleReady);
+        xumm.off('ready', onReady);
       } catch {
-        // ignore cleanup errors
+        // ignore
       }
-      clearTimeout(timeout);
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('unhandledrejection', onUnhandledRejection);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [xumm]);
+  }, [apiKey, origin, xumm]);
 
   const connect = async () => {
     if (!xumm) {
-      const msg = 'XUMM is not configured. Set REACT_APP_XUMM_API_KEY.';
-      setError(msg);
+      const msg = apiKey ? 'XUMM SDK not ready.' : 'VITE_XUMM_API_KEY is missing.';
+      setState((s) => ({ ...s, error: msg }));
       throw new Error(msg);
     }
 
-    const payloadApi = xumm.payload;
-    if (!payloadApi) {
+    if (!xumm.payload) {
       const msg = 'XUMM payload API unavailable.';
-      setError(msg);
+      setState((s) => ({ ...s, error: msg }));
       throw new Error(msg);
     }
+
+    setState((s) => ({ ...s, isConnecting: true, error: null, loginQr: null, loginLink: null }));
 
     try {
-      setIsLoading(true);
-      setError(null);
-      setLoginQr(null);
-      setLoginLink(null);
-
-      // Build a SignIn payload so XUMM/Xaman shows a QR that links the session
-      const subscription = await payloadApi.createAndSubscribe(
+      const subscription = await xumm.payload.createAndSubscribe(
         {
           txjson: { TransactionType: 'SignIn' },
         },
         (event) => {
-          // Continue listening until signed; stop if explicitly rejected
-          if (event.data.signed === false) {
-            return false;
-          }
+          if (event.data.signed === false) return false;
           return !!event.data.signed;
         }
       );
 
       const created = await subscription.created;
+      const refs = (created as any)?.refs as { qr_png?: string } | undefined;
       const next = (created as any)?.next as { always?: string; no_redirect?: string } | undefined;
-      setLoginQr(created?.refs?.qr_png || null);
-      setLoginLink(next?.always || next?.no_redirect || null);
+      setState((s) => ({
+        ...s,
+        loginQr: refs?.qr_png || null,
+        loginLink: next?.always || next?.no_redirect || null,
+      }));
 
-      // Wait for the user to sign; resolved contains account info
       const resolved = await subscription.resolved;
-      const acct = (resolved as any)?.response?.account as string | undefined;
-      const signed = Boolean((resolved as any)?.data?.signed ?? (resolved as any)?.response?.signed);
+      const response = (resolved as any)?.response;
+      const acct = response?.account as string | undefined;
+      const signed = Boolean(response?.signed);
 
       if (!signed) {
-        throw new Error('User rejected or login expired.');
+        throw new Error('User rejected or payload expired.');
       }
       if (!acct) {
         throw new Error('No account returned from XUMM.');
       }
 
-      setAddress(acct);
-      setIsConnected(true);
+      setState((s) => ({
+        ...s,
+        address: acct,
+        isConnecting: false,
+        error: null,
+      }));
       return acct;
     } catch (err: any) {
       const msg = err?.message || 'Failed to connect via XUMM.';
-      setError(msg);
-      setIsConnected(false);
+      setState((s) => ({ ...s, error: msg, isConnecting: false }));
       throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const signAndSubmit = async (txJson: any): Promise<SignResult> => {
-    if (!xumm) {
-      return { signed: false, txid: null, error: 'XUMM not configured.' };
-    }
-
-    const payloadApi = xumm.payload;
-    if (!payloadApi) {
-      return { signed: false, txid: null, error: 'XUMM payload API unavailable.' };
-    }
-
-    try {
-      const subscription = await payloadApi.createAndSubscribe(
-        {
-          txjson: txJson,
-          options: {
-            submit: true,
-          },
-        },
-        (event) => {
-          if (event.data.signed === false) {
-            return false;
-          }
-          return true;
-        }
-      );
-
-      const created = await subscription.created;
-      const resolved = await subscription.resolved;
-      const resolvedAny = resolved as any;
-      const txid = resolvedAny?.response?.txid || resolvedAny?.response?.hash || null;
-      const signed = Boolean(resolvedAny?.response?.txid || resolvedAny?.response?.hash);
-
-      const next = (created as any)?.next as { always?: string; no_redirect?: string } | undefined;
-
-      return {
-        signed,
-        txid,
-        nextUrl: next?.always || next?.no_redirect || null,
-        qrUrl: created?.refs?.qr_png || null,
-        error: signed ? undefined : 'User rejected or payload expired.',
-      };
-    } catch (err: any) {
-      const msg = err?.message || 'XUMM signing failed.';
-      return { signed: false, txid: null, error: msg };
     }
   };
 
   return {
-    address,
-    isConnected,
-    isLoading,
-    error,
+    ...state,
+    apiKey,
     connect,
-    signAndSubmit,
-    loginQr,
-    loginLink,
   };
 }
