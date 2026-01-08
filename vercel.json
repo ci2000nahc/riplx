@@ -1,9 +1,9 @@
 {
   "installCommand": "cd frontend && npm install --legacy-peer-deps",
   "buildCommand": "cd frontend && npm run build",
-  "outputDirectory": "frontend/build",
-  "framework": "create-react-app",
+  "outputDirectory": "frontend/dist",
+  "framework": "vite",
   "cleanUrls": true,
   "trailingSlash": false,
-  "rewrites": [{ "source": "/(.*)", "destination": "/frontend/build/$1" }]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
