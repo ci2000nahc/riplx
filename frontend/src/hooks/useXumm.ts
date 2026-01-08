@@ -9,6 +9,7 @@ type ConnectState = {
   loginQr: string | null;
   loginLink: string | null;
   origin: string;
+  isXApp: boolean;
 };
 
 export function useXumm() {
@@ -22,6 +23,7 @@ export function useXumm() {
     loginQr: null,
     loginLink: null,
     origin,
+    isXApp: false,
   });
 
   const xumm = useMemo(() => {
@@ -67,6 +69,14 @@ export function useXumm() {
         .catch(() => {
           setState((s) => ({ ...s, error: 'XUMM session not found. Please connect.' }));
         });
+
+      xumm.environment.xapp
+        .then((flag) => {
+          setState((s) => ({ ...s, isXApp: Boolean(flag) }));
+        })
+        .catch(() => {
+          // ignore
+        });
     };
 
     xumm.on('ready', onReady);
@@ -97,6 +107,17 @@ export function useXumm() {
     setState((s) => ({ ...s, isConnecting: true, error: null, loginQr: null, loginLink: null }));
 
     try {
+      // If running inside Xaman/xApp, the user is already in-app; no QR needed.
+      const insideXApp = await xumm.environment.xapp.catch(() => false);
+      if (insideXApp) {
+        const acct = await xumm.user.account.catch(() => null);
+        if (!acct) {
+          throw new Error('Inside xApp but no account returned. Check test device allowlist.');
+        }
+        setState((s) => ({ ...s, isXApp: true, address: acct, isConnecting: false, error: null }));
+        return acct;
+      }
+
       const subscription = await xumm.payload.createAndSubscribe(
         {
           txjson: { TransactionType: 'SignIn' },
