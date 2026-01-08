@@ -23,6 +23,8 @@ export function useXumm() {
       console.warn('REACT_APP_XUMM_API_KEY missing; set REACT_APP_XUMM_API_KEY.');
       return null;
     }
+    // Expose for quick console sanity checks (first/last 4 chars only)
+    (window as any)._xummApiKey = `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
     return new Xumm(apiKey);
   }, [apiKey]);
 

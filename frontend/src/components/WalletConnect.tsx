@@ -59,6 +59,14 @@ export default function WalletConnect() {
       >
         Connect with XUMM/Xaman
       </button>
+      {process.env.REACT_APP_XUMM_API_KEY && (
+        <div className="mt-2 text-xs text-gray-600">
+          Using XUMM API key ending with {(process.env.REACT_APP_XUMM_API_KEY || '').slice(-4)}
+        </div>
+      )}
+      <div className="mt-2 text-[11px] text-gray-500">
+        Origin: {typeof window !== 'undefined' ? window.location.origin : 'n/a'}
+      </div>
       {(loginLink || loginQr) && (
         <div className="mt-3 space-y-2 text-sm text-blue-900">
           {loginLink && (
