@@ -112,6 +112,17 @@ export function useXumm() {
 
     setState((s) => ({ ...s, isConnecting: true, error: null, loginQr: null, loginLink: null }));
 
+    // Failsafe timeout so the UI doesn't hang silently.
+    let timeout: number | undefined;
+    const failSlow = (msg: string) => {
+      setState((s) => ({ ...s, isConnecting: false, error: msg }));
+    };
+    if (typeof window !== 'undefined') {
+      timeout = window.setTimeout(() => {
+        failSlow('No QR/deeplink received yet. Check Allowed Origins, Web/Browser toggle, and test device.');
+      }, 10000);
+    }
+
     try {
       // If running inside Xaman/xApp, the user is already in-app; no QR needed.
       let insideXApp = false;
@@ -178,6 +189,7 @@ export function useXumm() {
         isConnecting: false,
         error: null,
       }));
+      if (timeout !== undefined) window.clearTimeout(timeout);
       return acct;
     } catch (err: any) {
       const status = err?.status || err?.code || err?.response?.status;
@@ -187,6 +199,7 @@ export function useXumm() {
       const suffix = ref ? ` [ref ${ref}]` : status ? ` (status ${status})` : '';
       console.error('XUMM connect failed:', err);
       setState((s) => ({ ...s, error: `${msg}${suffix}`, isConnecting: false }));
+      if (timeout !== undefined) window.clearTimeout(timeout);
       throw err;
     }
   };
