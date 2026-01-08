@@ -136,8 +136,13 @@ export function useXumm() {
       }));
       return acct;
     } catch (err: any) {
-      const msg = err?.message || 'Failed to connect via XUMM.';
-      setState((s) => ({ ...s, error: msg, isConnecting: false }));
+      const status = err?.status || err?.code || err?.response?.status;
+      const apiMsg = err?.body?.error?.message || err?.response?.data?.message;
+      const ref = err?.body?.error?.reference;
+      const msg = apiMsg || err?.message || 'Failed to connect via XUMM.';
+      const suffix = ref ? ` [ref ${ref}]` : status ? ` (status ${status})` : '';
+      console.error('XUMM connect failed:', err);
+      setState((s) => ({ ...s, error: `${msg}${suffix}`, isConnecting: false }));
       throw err;
     }
   };
