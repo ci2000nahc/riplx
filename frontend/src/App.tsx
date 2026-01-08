@@ -11,6 +11,15 @@ function ConnectCard() {
   const keySuffix = apiKey ? apiKey.slice(-4) : 'none';
   const apiBase = useMemo(() => (import.meta.env.VITE_API_BASE_URL as string | undefined) || '', []);
 
+  const fallbackAssets = useMemo(
+    () => [
+      { id: 'rwa-condo', name: 'Testnet Condo', description: '10% fractional condo exposure (demo)', price_rlusd: '100', requires_credential: 'accredited' },
+      { id: 'rwa-office', name: 'Testnet Office Space', description: 'Office space revenue share (demo)', price_rlusd: '180', requires_credential: 'kyc-verified' },
+      { id: 'rwa-gold', name: 'Testnet Gold Bar', description: 'Tokenized bullion (demo)', price_rlusd: '250', requires_credential: 'accredited' },
+    ],
+    [],
+  );
+
   const [assets, setAssets] = useState<{ id: string; name: string; description: string; price_rlusd: string; requires_credential?: string }[]>([]);
   const [hasAccredited, setHasAccredited] = useState(false);
   const [hasKyc, setHasKyc] = useState(false);
@@ -36,8 +45,19 @@ function ConnectCard() {
     if (!guardApi()) return;
     axios
       .get(`${apiBase}/rwa/assets`)
-      .then((res) => setAssets(res.data?.assets || []))
-      .catch(() => toast('Failed to load assets.', 'error'));
+      .then((res) => {
+        const srvAssets = res.data?.assets || [];
+        if (!srvAssets.length) {
+          setAssets(fallbackAssets);
+          toast('No assets from API; using demo catalog.', 'error');
+        } else {
+          setAssets(srvAssets);
+        }
+      })
+      .catch(() => {
+        setAssets(fallbackAssets);
+        toast('Failed to load assets; using demo catalog.', 'error');
+      });
   }, [apiBase]);
 
   useEffect(() => {

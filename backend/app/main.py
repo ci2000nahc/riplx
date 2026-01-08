@@ -33,18 +33,25 @@ trustlines: Dict[str, dict] = {}
 # Static mock RWA catalog for demo/testing.
 rwa_assets = [
     {
-        "id": "rwa-001",
-        "name": "Testnet Commercial Note",
-        "description": "A mock RWA for demo purposes",
+        "id": "rwa-condo",
+        "name": "Testnet Condo",
+        "description": "10% fractional condo exposure (demo)",
         "price_rlusd": "100",
         "requires_credential": "accredited",
     },
     {
-        "id": "rwa-002",
-        "name": "Testnet Equity Warrant",
-        "description": "Demo-only equity-style token",
-        "price_rlusd": "250",
+        "id": "rwa-office",
+        "name": "Testnet Office Space",
+        "description": "Office space revenue share (demo)",
+        "price_rlusd": "180",
         "requires_credential": "kyc-verified",
+    },
+    {
+        "id": "rwa-gold",
+        "name": "Testnet Gold Bar",
+        "description": "Tokenized bullion (demo)",
+        "price_rlusd": "250",
+        "requires_credential": "accredited",
     },
 ]
 
