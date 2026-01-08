@@ -5,7 +5,7 @@ import './index.css';
 const queryClient = new QueryClient();
 
 function ConnectCard() {
-  const { address, apiKey, isConnecting, isReady, error, loginQr, loginLink, connect, origin } = useXumm();
+  const { address, apiKey, apiBase, isConnecting, isReady, error, loginQr, loginLink, connect, origin } = useXumm();
   const keySuffix = apiKey ? apiKey.slice(-4) : 'none';
 
   return (
@@ -20,7 +20,10 @@ function ConnectCard() {
         </div>
       </div>
 
-      <div className="text-sm text-slate-600">Origin: {origin}</div>
+      <div className="text-sm text-slate-600 space-y-1">
+        <div>Origin: {origin}</div>
+        <div>API base: {apiBase || 'not set'}</div>
+      </div>
 
       {address ? (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-lg">

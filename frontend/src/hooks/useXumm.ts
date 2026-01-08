@@ -13,7 +13,8 @@ type ConnectState = {
 
 export function useXumm() {
   const apiKey = import.meta.env.VITE_XUMM_API_KEY as string | undefined;
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
+  const apiBaseRaw = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
+  const apiBase = apiBaseRaw.replace(/\/+$/, '');
   const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
   const [state, setState] = useState<ConnectState>({
     address: null,
@@ -35,6 +36,11 @@ export function useXumm() {
   const connect = async () => {
     if (!apiBase) {
       const msg = 'API base URL not set (VITE_API_BASE_URL).';
+      setState((s) => ({ ...s, error: msg }));
+      throw new Error(msg);
+    }
+    if (apiBase === origin) {
+      const msg = 'VITE_API_BASE_URL points to this frontend. Set it to your backend base URL.';
       setState((s) => ({ ...s, error: msg }));
       throw new Error(msg);
     }
@@ -111,6 +117,7 @@ export function useXumm() {
   return {
     ...state,
     apiKey,
+    apiBase,
     connect,
   };
 }
